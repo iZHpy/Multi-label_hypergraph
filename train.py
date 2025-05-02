@@ -46,9 +46,11 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 		
 		## Updates ##
 		# start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
+
 		all_predictions[start_idx:end_idx] = pred_out
 		all_targets[start_idx:end_idx] = tgt_out
 		batch_idx +=1
-		
+	
+
 	# label_features represents the encoded label information after each epoch training
 	return all_predictions, all_targets, bce_total, label_features

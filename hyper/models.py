@@ -75,7 +75,9 @@ class WeightedHypergraphLayer(nn.Module):
         else:
             raise ValueError(f"Unknown aggregation type: {self.aggregation_type}")
 
+
         edge_features = self.layer_norm1(edge_features + q)  # Add layer normalization
+
 
         # Equation (7): Aggregate messages from hyperedges to nodes, with weights
         edge_to_node_messages = self.mlp2(
@@ -136,14 +138,19 @@ class WeightedHypergraphModel(nn.Module):
     def forward(self, hypergraph, batch_features, start_index, end_index):
         device = batch_features.device
         batch_size = end_index - start_index
+        
 
-        node_features = self.label_embedding(hypergraph.node_index.to(device))
-        edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
+        print(len(hypergraph.id_to_edge))
+        raise ValueError("Debugging: Check the hypergraph id_to_edge")
+        edge_features = self.label_embedding(hypergraph.edge_index[1].to(device))
+        # node_features = self.label_embedding(hypergraph.node_index.to(device))
+        # edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
 
         hyperedge_features = defaultdict(list)
         for i, sample_id in enumerate(range(start_index, end_index)):
             edge_id = hypergraph.get_hyperedge_id(sample_id)
-            hyperedge_features[edge_id].append(batch_features[i])
+            hyperedge_features[edge_id].append(batch_features[i]) 
+         
 
         for edge_id, features in hyperedge_features.items():
             if len(features) == 1:
@@ -166,6 +173,7 @@ class WeightedHypergraphModel(nn.Module):
         edge_features = edge_features
         edge_index = hypergraph.edge_index.to(device)
         edge_weight = hypergraph.edge_weight.to(device)
+
 
         for layer in self.layers:
             node_features, edge_features = layer(node_features, edge_features, edge_index, edge_weight)
