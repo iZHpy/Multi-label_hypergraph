@@ -74,7 +74,7 @@ class LAMP(nn.Module):
 
 
         if label_features is None:
-            label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index)
+            _, label_features = self.label_encoder(self.hypergraph, sample_features, start_index, end_index)
 
 
         logits = self.decoder(sample_features, label_features).squeeze(1)

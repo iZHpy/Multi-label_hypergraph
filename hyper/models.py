@@ -138,39 +138,36 @@ class WeightedHypergraphModel(nn.Module):
     def forward(self, hypergraph, batch_features, start_index, end_index):
         device = batch_features.device
         batch_size = end_index - start_index
-        
 
-        print(len(hypergraph.id_to_edge))
-        raise ValueError("Debugging: Check the hypergraph id_to_edge")
-        edge_features = self.label_embedding(hypergraph.edge_index[1].to(device))
+        edge_features = self.label_embedding(hypergraph.label_index.to(device))
+        node_features = torch.zeros(len(hypergraph.node_index), edge_features.size(1), device=device)
         # node_features = self.label_embedding(hypergraph.node_index.to(device))
         # edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
 
-        hyperedge_features = defaultdict(list)
+        hypernode_features = defaultdict(list)
         for i, sample_id in enumerate(range(start_index, end_index)):
-            edge_id = hypergraph.get_hyperedge_id(sample_id)
-            hyperedge_features[edge_id].append(batch_features[i]) 
+            node_id = hypergraph.get_hypernode_id(sample_id)
+            hypernode_features[node_id] = batch_features[i] 
          
 
-        for edge_id, features in hyperedge_features.items():
-            if len(features) == 1:
-                edge_features[edge_id] = features[0]
-            else:
-                stacked_features = torch.stack(features)
-                if self.feature_aggregate == 'max':
-                    edge_features[edge_id] = torch.max(stacked_features, dim=0)[0]
-                elif self.feature_aggregate == 'mean':
-                    edge_features[edge_id] = torch.mean(stacked_features, dim=0)
-                elif self.feature_aggregate == 'simple_attention':
-                    attention_weights = self.simple_attention(stacked_features).squeeze(-1)
-                    attention_weights = F.softmax(attention_weights, dim=0)
-                    edge_features[edge_id] = (stacked_features * attention_weights.unsqueeze(-1)).sum(dim=0)
-                elif self.feature_aggregate == 'self_attention':
-                    edge_features[edge_id] = self.self_attention(stacked_features.unsqueeze(0)).squeeze(0)
-                else:
-                    raise ValueError(f"Unknown feature aggregation method: {self.feature_aggregate}")
+        # for edge_id, features in hyperedge_features.items():
+        #     if len(features) == 1:
+        #         edge_features[edge_id] = features[0]
+        #     else:
+        #         stacked_features = torch.stack(features)
+        #         if self.feature_aggregate == 'max':
+        #             edge_features[edge_id] = torch.max(stacked_features, dim=0)[0]
+        #         elif self.feature_aggregate == 'mean':
+        #             edge_features[edge_id] = torch.mean(stacked_features, dim=0)
+        #         elif self.feature_aggregate == 'simple_attention':
+        #             attention_weights = self.simple_attention(stacked_features).squeeze(-1)
+        #             attention_weights = F.softmax(attention_weights, dim=0)
+        #             edge_features[edge_id] = (stacked_features * attention_weights.unsqueeze(-1)).sum(dim=0)
+        #         elif self.feature_aggregate == 'self_attention':
+        #             edge_features[edge_id] = self.self_attention(stacked_features.unsqueeze(0)).squeeze(0)
+        #         else:
+        #             raise ValueError(f"Unknown feature aggregation method: {self.feature_aggregate}")
 
-        edge_features = edge_features
         edge_index = hypergraph.edge_index.to(device)
         edge_weight = hypergraph.edge_weight.to(device)
 

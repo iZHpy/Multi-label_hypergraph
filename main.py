@@ -67,14 +67,14 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    # print(data['dict']['tgt'])
-
 
     if opt.dataset in ['data/reuters']:
         train_labels = generate_train_labels(data['train']['tgt'])
+        
 
     train_data, valid_data, test_data, opt = process_data(data, opt)
     print(opt)
+    
 
 
     # ========= Preparing Model =========#

@@ -44,12 +44,11 @@ class WeightedHypergraph:
             weights.append(log_weight)
 
 
-        self.node_index = torch.tensor(list(node_to_id.keys()), dtype=torch.long)   # node_index represents which label is contained in each node
+        self.label_index = torch.tensor(list(self.id_to_edge.keys()), dtype=torch.long)   # node_index represents which label is contained in each node
+        self.node_index = torch.tensor(list(node_to_id.keys()), dtype=torch.long)    # node_index shows which node is contained in each hyperedge
         self.edge_index = torch.tensor([node_list, edge_list], dtype=torch.long)    # edge_index shows which nodes are contained in each hypergraph
         self.edge_weight = torch.tensor(weights, dtype=torch.float)     # edge_weight represents the frequency of each hyperedge
-
-        print(f"node_index: {self.node_index}")
-        raise NotImplementedError("Check the node_index and edge_index")
+        self.node_to_id = node_to_id
 
         assert self.edge_index.shape[1] == len(node_list), "edge_index should contain all edge occurrences"
 
@@ -86,3 +85,6 @@ class WeightedHypergraph:
     def get_hyperedge_weight(self, edge_id):
         edge_key = self.id_to_edge[edge_id]
         return self.hyperedges[edge_key]["weight"]
+    
+    def get_hypernode_id(self, sample_id):
+        return self.node_to_id[sample_id]
