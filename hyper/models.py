@@ -75,7 +75,7 @@ class WeightedHypergraphLayer(nn.Module):
         else:
             raise ValueError(f"Unknown aggregation type: {self.aggregation_type}")
 
-        edge_features = self.layer_norm1(edge_features + q)  # Add layer normalization
+        edge_features = self.layer_norm1(F + q)  # Add layer normalization
 
         # Equation (7): Aggregate messages from hyperedges to nodes, with weights
         edge_to_node_messages = self.mlp2(
@@ -144,7 +144,7 @@ class WeightedHypergraphModel(nn.Module):
         for i, sample_id in enumerate(range(start_index, end_index)):
             edge_id = hypergraph.get_hyperedge_id(sample_id)
             hyperedge_features[edge_id].append(batch_features[i])
-
+      
         for edge_id, features in hyperedge_features.items():
             if len(features) == 1:
                 edge_features[edge_id] = features[0]

@@ -23,13 +23,13 @@ class ComplexDecoder(nn.Module):
 
         # Final prediction layers
         self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
+        self.fc2 = nn.Linear(hidden_dim, num_labels)
 
     def forward(self, sample_feature, label_feature):
         batch_size = sample_feature.shape[0]
 
         # Attention mechanism
-        query = self.query_proj(sample_feature).unsqueeze(1)  # [batch_size, 1, hidden_dim]
+        query = self.query_proj(sample_feature)  # [batch_size, 1, hidden_dim]
         key = self.key_proj(label_feature).unsqueeze(0)  # [1, num_labels, hidden_dim]
         value = self.value_proj(label_feature).unsqueeze(0)  # [1, num_labels, hidden_dim]
 
@@ -38,7 +38,7 @@ class ComplexDecoder(nn.Module):
         context_vector = torch.matmul(attention_probs, value)  # [batch_size, 1, hidden_dim]
 
         # Combine sample feature with context vector
-        combined_feature = torch.cat([sample_feature.unsqueeze(1), context_vector],
+        combined_feature = torch.cat([sample_feature, context_vector],
                                      dim=-1)  # [batch_size, 1, hidden_dim*2]
 
         # Final prediction

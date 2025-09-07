@@ -188,7 +188,11 @@ class DataLoader(object):
 
 
     def __iter__(self):
+        self._iter_count = 0
+        if self._need_shuffle:
+            self.shuffle()
         return self
+
 
     def __next__(self):
         return self.next()

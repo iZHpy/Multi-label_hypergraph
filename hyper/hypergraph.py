@@ -3,7 +3,7 @@ from torch_geometric.data import HeteroData
 from collections import defaultdict
 import math
 
-class WeightedHypergraph:
+class  WeightedHypergraph:
     def __init__(self, num_labels):
         self.num_labels = num_labels
         self.hyperedges = defaultdict(lambda: {"weight": 0, "samples": set()})
@@ -26,7 +26,7 @@ class WeightedHypergraph:
         for edge_id, edge_key in enumerate(self.hyperedges.keys()):
             self.edge_to_id[edge_key] = edge_id     # edge_id represents hyperedge ID
             self.id_to_edge[edge_id] = edge_key     # edge_key represents which labels are contained in each hyperedge
-
+            
         # Create node_index, edge_index and edge_weight
         node_list = []
         edge_list = []
@@ -46,7 +46,6 @@ class WeightedHypergraph:
         self.node_index = torch.tensor(list(node_to_id.keys()), dtype=torch.long)   # node_index represents which label is contained in each node
         self.edge_index = torch.tensor([node_list, edge_list], dtype=torch.long)    # edge_index shows which nodes are contained in each hypergraph
         self.edge_weight = torch.tensor(weights, dtype=torch.float)     # edge_weight represents the frequency of each hyperedge
-
 
 
         assert self.edge_index.shape[1] == len(node_list), "edge_index should contain all edge occurrences"

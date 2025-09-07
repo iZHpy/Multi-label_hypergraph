@@ -25,7 +25,6 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 	bce_total,d_total,d_fake_total,g_total = 0,0,0,0
 
 	start_idx, end_idx = (batch_idx * batch_size), ((batch_idx + 1) * batch_size)
-
 	for batch in tqdm(train_data, mininterval=0.5,desc='(Training)', leave=False):
 		src,adj,tgt = batch
 		loss,d_loss = 0,0
@@ -45,7 +44,7 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 
 		
 		## Updates ##
-		# start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
+		start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 		all_predictions[start_idx:end_idx] = pred_out
 		all_targets[start_idx:end_idx] = tgt_out
 		batch_idx +=1
