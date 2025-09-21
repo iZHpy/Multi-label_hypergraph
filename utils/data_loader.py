@@ -52,8 +52,8 @@ def process_data(data,opt):
         tgt_insts=data['train']['tgt'],
         batch_size=opt.batch_size,
         device=opt.device,
-        shuffle=False,  # need to be changed later
-        drop_last=True)
+        shuffle=True,  # need to be changed later
+        drop_last=False)
 
     valid_data = DataLoader(
         data['dict']['src'],

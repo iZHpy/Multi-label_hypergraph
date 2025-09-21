@@ -32,6 +32,7 @@ class LAMP(nn.Module):
         self.hypergraph.create_from_labels(labels=train_labels)
         
         ############# Sample Encoder ###########
+        self.cache_sample_features = []
         self.sample_encoder = GraphEncoder(
             n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
             d_word_vec=d_word_vec, d_model=d_model,d_k=d_k, d_v=d_v,
@@ -65,9 +66,12 @@ class LAMP(nn.Module):
             freezed_param_ids = freezed_param_ids | enc_onehot_param_ids
     
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
+    
+    def cache_samples(self, src, adj, start_idx, end_idx):
+        src_seq, src_pos = src
+        
 
-
-    def forward(self, src, adj, label_features, binary_tgt,start_index, end_index):
+    def forward(self, src, adj, label_features, binary_tgt, start_index, end_index):
         src_seq, src_pos = src
 
         sample_features = self.sample_encoder(src_seq, adj, src_pos)
