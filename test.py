@@ -22,6 +22,7 @@ def test_epoch(model, test_data,opt,data_dict, description, label_features):
 	batch_size = test_data._batch_size
 	bce_total = 0
 
+	start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 	for batch in tqdm(test_data, mininterval=0.5, desc=description, leave=False):
 		src,adj,tgt = batch
 		batch_loc = int(batch_idx*batch_size)
@@ -52,12 +53,11 @@ def test_epoch(model, test_data,opt,data_dict, description, label_features):
 		bce_total += bce_loss.item()
 
 
-		start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 		all_predictions[start_idx:end_idx] = norm_pred
 		all_targets[start_idx:end_idx] = gold_binary
-
 			
 		batch_idx+=1
+		start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 	
 	return all_predictions, all_targets, bce_total
 

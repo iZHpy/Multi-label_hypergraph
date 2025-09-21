@@ -27,7 +27,6 @@ class LAMP(nn.Module):
         super(LAMP, self).__init__()
         self.onehot = onehot
 
-
         self.hypergraph = WeightedHypergraph(num_labels=n_tgt_vocab)
         self.hypergraph.create_from_labels(labels=train_labels)
         
@@ -66,15 +65,23 @@ class LAMP(nn.Module):
     
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 
+    def initialize_cache(self, num_samples):
+        self.cache_samples = torch.zeros(num_samples, self.sample_encoder.d_model)
 
+    def cache_samples_func(self, src, adj, start_idx, end_idx):
+        src_seq, src_pos = src
+        sample_features = self.sample_encoder(src_seq, adj, src_pos)
+        if self.training:
+            self.cache_samples[start_idx:end_idx] = sample_features.squeeze(1).detach() 
+        return sample_features
+        
     def forward(self, src, adj, label_features, binary_tgt,start_index, end_index):
         src_seq, src_pos = src
 
-        sample_features = self.sample_encoder(src_seq, adj, src_pos)
-
-
+        # sample_features = self.sample_encoder(src_seq, adj, src_pos)
+        sample_features = self.cache_samples_func(src, adj, start_index, end_index)
         if label_features is None:
-            label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index)
+            label_features, _ = self.label_encoder(self.hypergraph, self.cache_samples, start_index, end_index, device=sample_features.device)
 
         logits = self.decoder(sample_features, label_features).squeeze(1)
 

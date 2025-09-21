@@ -27,12 +27,10 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 	# start_idx, end_idx = (batch_idx * batch_size), ((batch_idx + 1) * batch_size)
 	# for batch in tqdm(train_data, mininterval=0.5,desc='(Cache Sample Embedding)', leave=False):
 	# 	src, adj, tgt = batch
-	# 	model.cache_samples(src, adj, start_idx, end_idx)
-	# 	start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
+	# 	model.cache_samples_func(src, adj, start_idx, end_idx)
 	# 	batch_idx +=1
+	# 	start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 	# batch_idx = 0	
-	# raise NotImplementedError("Direct training is not supported. Please use the adversarial training script 'adv_train.py'.")
-	batch_idx = 0
 	
 	start_idx, end_idx = (batch_idx * batch_size), ((batch_idx + 1) * batch_size)
 	for batch in tqdm(train_data, mininterval=0.5,desc='(Training)', leave=False):

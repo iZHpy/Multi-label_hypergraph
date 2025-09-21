@@ -132,13 +132,8 @@ class WeightedHypergraphModel(nn.Module):
             self.self_attention = MultiHeadAttention(feature_dim, num_heads)
 
         self.layer_norm = nn.LayerNorm(feature_dim)
-    
-    def cache_samples(self, src, adj, start_idx, end_idx):
-        src_seq, src_pos = src
-
-    
-    def forward(self, hypergraph, batch_features, start_index, end_index):
-        device = batch_features.device
+     
+    def forward(self, hypergraph, batch_features, start_index, end_index, device='cpu'):
         batch_size = end_index - start_index
 
         node_features = self.label_embedding(hypergraph.node_index.to(device))
@@ -168,7 +163,7 @@ class WeightedHypergraphModel(nn.Module):
                 else:
                     raise ValueError(f"Unknown feature aggregation method: {self.feature_aggregate}")
 
-        edge_features = edge_features
+        edge_features = edge_features.to(device)
         edge_index = hypergraph.edge_index.to(device)
         edge_weight = hypergraph.edge_weight.to(device)
 

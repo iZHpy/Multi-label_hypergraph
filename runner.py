@@ -14,6 +14,7 @@ from test import test_epoch
 warnings.filterwarnings("ignore")
 
 def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_optimizer,scheduler, opt, data_dict):
+	model.initialize_cache(len(train_data._src_insts))
 	logger = evals.Logger(opt)
 	
 	valid_losses = []
