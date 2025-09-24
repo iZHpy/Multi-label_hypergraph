@@ -78,12 +78,13 @@ class LAMP(nn.Module):
     def forward(self, src, adj, label_features, binary_tgt,start_index, end_index):
         src_seq, src_pos = src
 
-        # sample_features = self.sample_encoder(src_seq, adj, src_pos)
-        sample_features = self.cache_samples_func(src, adj, start_index, end_index)
+        sample_features = self.sample_encoder(src_seq, adj, src_pos)
+        # sample_features = self.cache_samples_func(src, adj, start_index, end_index)
         if label_features is None:
-            label_features, _ = self.label_encoder(self.hypergraph, self.cache_samples, start_index, end_index, device=sample_features.device)
+            label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index, device=sample_features.device)
 
+        print(sample_features.size(), label_features.size())
+        raise NotImplementedError
         logits = self.decoder(sample_features, label_features).squeeze(1)
-
 
         return logits, label_features

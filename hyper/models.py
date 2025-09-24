@@ -140,8 +140,8 @@ class WeightedHypergraphModel(nn.Module):
         edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
 
         hyperedge_features = defaultdict(list)
-        for i, sample_id in enumerate(range(batch_features.size(0))):
-        # for i, sample_id in enumerate(range(start_index, end_index)):
+        # for i, sample_id in enumerate(range(batch_features.size(0))):
+        for i, sample_id in enumerate(range(start_index, end_index)):
             edge_id = hypergraph.get_hyperedge_id(sample_id)
             hyperedge_features[edge_id].append(batch_features[i])
       
