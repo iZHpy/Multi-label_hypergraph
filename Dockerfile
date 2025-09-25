@@ -16,15 +16,24 @@ RUN mkdir -p $MAMBA_ROOT_PREFIX
 WORKDIR /opt/app
 COPY environment.yml /opt/app/environment.yml
 
-# 先按 yml 创建环境（若 torch/pyg 冲突，可注释掉，改为下一步手工装）
-RUN micromamba create -y -n $ENV_NAME -f environment.yml && \
-    micromamba clean -a -y
 
-# 针对 torch==1.13.1 推荐用官方 cu117 wheel（更稳），如需覆盖：
-# RUN micromamba run -n $ENV_NAME pip install \
-#   torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 \
-#   --extra-index-url https://download.pytorch.org/whl/cu117 && \
-#   micromamba run -n $ENV_NAME pip install torch-geometric==2.6.0
+RUN micromamba create -y -n $ENV_NAME -f environment.yml && micromamba clean -a -y
+
+# 1) 安装 PyTorch cu117 官方 wheel（必须带 +cu117）
+RUN micromamba run -n $ENV_NAME pip install \
+  torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1
+
+# 2) 安装 PyG
+RUN micromamba run -n $ENV_NAME pip install --no-cache-dir --prefer-binary \
+  --only-binary=torch-scatter,torch-sparse,torch-cluster,torch-spline-conv \
+  https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_scatter-2.1.2%2Bpt20cu117-cp310-cp310-linux_x86_64.whl \
+  https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_sparse-0.6.18%2Bpt20cu117-cp310-cp310-linux_x86_64.whl \
+  https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_cluster-1.6.3%2Bpt20cu117-cp310-cp310-linux_x86_64.whl \
+  https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_spline_conv-1.2.2%2Bpt20cu117-cp310-cp310-linux_x86_64.whl
+
+# 3) 最后装纯 Python 的 torch-geometric
+RUN micromamba run -n $ENV_NAME pip install torch-geometric==2.6.0
+
 
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/$ENV_NAME/bin:$PATH
 

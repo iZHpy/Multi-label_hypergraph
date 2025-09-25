@@ -84,7 +84,7 @@ class LAMP(nn.Module):
             label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index, device=sample_features.device)
 
         print(sample_features.size(), label_features.size())
-        raise NotImplementedError
+        # raise NotImplementedError
         logits = self.decoder(sample_features, label_features).squeeze(1)
 
         return logits, label_features
