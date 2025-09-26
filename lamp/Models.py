@@ -39,7 +39,7 @@ class LAMP(nn.Module):
             special_token_init=special_token_init)
 
         ############# Label Encoder ###########
-
+        self.label_embedding = nn.Embedding(n_tgt_vocab, d_model)
         self.label_encoder = WeightedHypergraphModel(num_labels=n_tgt_vocab, feature_dim=d_model, dropout_rate=label_enc_dropout ,
             num_layers=n_layers_label_enc, feature_aggregate=feature_aggregate, node2hyperedge_aggregate=node2hyperedge_aggregate, node_update=node_update,num_heads=n_head)
         

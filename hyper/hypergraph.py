@@ -3,7 +3,7 @@ from torch_geometric.data import HeteroData
 from collections import defaultdict
 import math
 
-class  WeightedHypergraph:
+class WeightedHypergraph:
     def __init__(self, num_labels):
         self.num_labels = num_labels
         self.hyperedges = defaultdict(lambda: {"weight": 0, "samples": set()})
@@ -36,14 +36,14 @@ class  WeightedHypergraph:
         for edge_key, edge_data in self.hyperedges.items():
             edge_id = self.edge_to_id[edge_key]
             for node in edge_key:
-                if node not in node_to_id:
-                    node_to_id[node] = len(node_to_id)
-                node_list.append(node_to_id[node])
+                # if node not in node_to_id:
+                #     node_to_id[node] = len(node_to_id)
+                node_list.append(node)
                 edge_list.append(edge_id)
             log_weight = math.log(edge_data["weight"] + 1)  # prevent log(1)=0
             weights.append(log_weight)
-
-        self.node_index = torch.tensor(list(node_to_id.keys()), dtype=torch.long)   # node_index represents which label is contained in each node
+        # self.node_index = torch.tensor(list(node_to_id.keys()), dtype=torch.long)   # node_index represents which label is contained in each node
+        self.node_index = torch.arange(self.num_labels, dtype=torch.long)   # node_index represents which label is contained in each node
         self.edge_index = torch.tensor([node_list, edge_list], dtype=torch.long)    # edge_index shows which nodes are contained in each hypergraph
         self.edge_weight = torch.tensor(weights, dtype=torch.float)     # edge_weight represents the frequency of each hyperedge
 
