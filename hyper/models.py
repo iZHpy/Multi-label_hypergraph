@@ -28,14 +28,14 @@ class WeightedHypergraphLayer(nn.Module):
 
         if node_update == 'simple':
             self.mlp3 = nn.Sequential(
-                nn.Linear(feature_dim * 2 + 1, feature_dim),
+                nn.Linear(feature_dim * 2, feature_dim),
                 nn.ReLU(),
                 nn.Dropout(dropout_rate),
                 nn.Linear(feature_dim, feature_dim)
             )
         elif node_update == 'gated':
             self.mlp3 = nn.Sequential(
-                nn.Linear(feature_dim * 3 + 1, feature_dim),
+                nn.Linear(feature_dim * 3, feature_dim),
                 nn.ReLU(),
                 nn.Dropout(dropout_rate),
                 nn.Linear(feature_dim, feature_dim)
@@ -86,14 +86,14 @@ class WeightedHypergraphLayer(nn.Module):
         p_tilde = scatter_sum(weighted_messages, edge_index[0], dim=0, dim_size=num_nodes)
 
         edge_count = scatter_sum(edge_weight_expanded, edge_index[0], dim=0, dim_size=num_nodes)
+        edge_count = torch.where(edge_count == 0, torch.tensor(1, device=edge_count.device), edge_count)
 
         # Equation (8): Update node embeddings
         if self.node_update == 'simple':
             node_features_update = self.mlp3(torch.cat([
                 node_features,
                 p_tilde,
-                edge_count.unsqueeze(1)
-            ], dim=-1))
+            ], dim=-1)) / edge_count.unsqueeze(1)
         elif self.node_update == 'gated':
             gate_input = torch.cat([node_features, p_tilde], dim=-1)
             gate = torch.sigmoid(self.gate(gate_input))
@@ -101,8 +101,7 @@ class WeightedHypergraphLayer(nn.Module):
                 node_features,
                 p_tilde,
                 gate * p_tilde,  # 加入门控机制
-                edge_count.unsqueeze(1)
-            ], dim=-1))
+            ], dim=-1)) / edge_count.unsqueeze(1)
         else:
             raise ValueError(f"Unknown node_update type: {self.node_update}")
 

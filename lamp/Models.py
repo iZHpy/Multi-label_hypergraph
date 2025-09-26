@@ -31,7 +31,7 @@ class LAMP(nn.Module):
         self.hypergraph.create_from_labels(labels=train_labels)
         
         ############# Sample Encoder ###########
-        self.sample_encoder = GraphEncoder(
+        self.sample_encoder = GraphEncoder( 
             n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
             d_word_vec=d_word_vec, d_model=d_model,d_k=d_k, d_v=d_v,
             d_inner_hid=d_inner_hid, onehot=onehot, dropout=sample_enc_dropout,
@@ -83,7 +83,6 @@ class LAMP(nn.Module):
         if label_features is None:
             label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index, device=sample_features.device)
 
-        print(sample_features.size(), label_features.size())
         # raise NotImplementedError
         logits = self.decoder(sample_features, label_features).squeeze(1)
 
