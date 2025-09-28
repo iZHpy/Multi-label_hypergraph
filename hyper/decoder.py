@@ -82,6 +82,23 @@ class SimpleDecoder(nn.Module):
 
         logits = torch.matmul(sample_feature, label_feature.t())
         return logits
+    
+class LatentDecoder(nn.Module):
+    def __init__(self, feature_dim, latent_dim, emb_size):
+        super(LatentDecoder, self).__init__()
+
+        self.fd = nn.Sequential(
+            nn.Linear(feature_dim + latent_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, emb_size),
+            nn.LeakyReLU()
+        )
+
+    def forward(self, latent):
+        d = self.fd(latent)
+        d = F.normalize(d, dim=1)
+
+        return d
 
 
 

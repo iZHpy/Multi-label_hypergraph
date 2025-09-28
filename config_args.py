@@ -53,12 +53,13 @@ def get_args(parser):
     parser.add_argument('-no_enc_pos_embedding', action='store_true')
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-load_pretrained', action='store_true')
+    parser.add_argument('-nll_coeff', type=float, default=1.0)
     opt = parser.parse_args()
     return opt
 
 
 def config_args(opt):
-    opt.multi_gpu = True
+    opt.multi_gpu = False
 
     # if 'reuters' in opt.dataset or 'bibtext' in opt.dataset:
 

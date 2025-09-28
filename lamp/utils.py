@@ -59,3 +59,11 @@ def swap_0_1(tensor, on_zero, on_non_zero):
     res[tensor==0] = on_zero
     res[tensor!=0] = on_non_zero
     return res
+
+
+def kl_align_samples_as_gauss(z1, z2, tau=1.0, reduction='mean'):
+    mse = F.mse_loss(z1, z2, reduction='none').sum(dim=-1)  
+    kl_sym_per_sample = (1.0 / (tau**2)) * mse       
+    if reduction == 'none':
+        return kl_sym_per_sample
+    return kl_sym_per_sample.mean() if reduction == 'mean' else kl_sym_per_sample.sum()

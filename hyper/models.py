@@ -114,7 +114,7 @@ class WeightedHypergraphLayer(nn.Module):
 class WeightedHypergraphModel(nn.Module):
     def __init__(self, num_labels, feature_dim, num_layers, feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple', num_heads=4, dropout_rate=0.1):
         super(WeightedHypergraphModel, self).__init__()
-        self.label_embedding = nn.Embedding(num_labels, feature_dim)
+        # self.label_embedding = nn.Embedding(num_labels, feature_dim)
         self.layers = nn.ModuleList([WeightedHypergraphLayer(feature_dim, aggregation_type=node2hyperedge_aggregate, node_update=node_update,
                                         num_heads=num_heads,dropout_rate=dropout_rate) for _ in range(num_layers)])
         self.final_node_projection = nn.Linear(feature_dim, feature_dim)
@@ -132,14 +132,13 @@ class WeightedHypergraphModel(nn.Module):
 
         self.layer_norm = nn.LayerNorm(feature_dim)
      
-    def forward(self, hypergraph, batch_features, start_index, end_index, device='cpu'):
+    def forward(self, hypergraph, batch_features, node_features, start_index, end_index, device='cpu'):
         batch_size = end_index - start_index
 
-        node_features = self.label_embedding(hypergraph.node_index.to(device))
+        # node_features = self.label_embedding(hypergraph.node_index.to(device))
         edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
 
         hyperedge_features = defaultdict(list)
-        # for i, sample_id in enumerate(range(batch_features.size(0))):
         for i, sample_id in enumerate(range(start_index, end_index)):
             edge_id = hypergraph.get_hyperedge_id(sample_id)
             hyperedge_features[edge_id].append(batch_features[i])

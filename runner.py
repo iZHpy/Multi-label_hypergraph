@@ -41,11 +41,15 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		################################## TRAIN ###################################
 		start = time.time()
-		all_predictions,all_targets,train_loss, label_features=train_epoch(model,train_data,crit,optimizer,adv_optimizer,(epoch_i+1),data_dict,opt)
+		all_predictions,all_targets,train_loss=train_epoch(model,train_data,crit,optimizer,adv_optimizer,(epoch_i+1),data_dict,opt)
 		elapsed = ((time.time()-start)/60)
 		print('\n(Training) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
-		train_loss = train_loss/len(train_data._src_insts)
-		print('BCE_Loss : '+str(train_loss))
+		train_total_loss, train_nll_loss, train_nll_loss_x, train_kl_loss, train_cpc_loss = train_loss
+		print('Total_Loss : '+str(train_total_loss/len(train_data._src_insts)))
+		print('NLL_Loss : '+str(train_nll_loss/len(train_data._src_insts)))
+		print('NLL_X_Loss : '+str(train_nll_loss_x/len(train_data._src_insts)))
+		print('KL_Loss : '+str(train_kl_loss/len(train_data._src_insts)))
+		print('CPC_Loss : '+str(train_cpc_loss/len(train_data._src_insts)))
 
 		if 'reuters' in opt.dataset or 'bibtext' in opt.dataset:
 			torch.save(all_predictions,path.join(opt.model_name,'epochs','train_preds'+str(epoch_i+1)+'.pt'))
@@ -54,11 +58,15 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		################################### VALID ###################################
 		start = time.time()
-		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,data_dict,'(Validation)', label_features)
+		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,data_dict,'(Validation)')
 		elapsed = ((time.time()-start)/60)
 		print('\n(Validation) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
-		valid_loss = valid_loss/len(valid_data._src_insts)
-		print('BCE_Loss : '+str(valid_loss))
+		valid_total_loss, valid_nll_loss, valid_nll_loss_x, valid_kl_loss, valid_cpc_loss = valid_loss
+		print('Total_Loss : '+str(valid_total_loss/len(valid_data._src_insts)))
+		print('NLL_Loss : '+str(valid_nll_loss/len(valid_data._src_insts)))
+		print('NLL_X_Loss : '+str(valid_nll_loss_x/len(valid_data._src_insts)))
+		print('KL_Loss : '+str(valid_kl_loss/len(valid_data._src_insts)))
+		print('CPC_Loss : '+str(valid_cpc_loss/len(valid_data._src_insts)))
 
 		torch.save(all_predictions,path.join(opt.model_name,'epochs','valid_preds'+str(epoch_i+1)+'.pt'))
 		torch.save(all_targets,path.join(opt.model_name,'epochs','valid_targets'+str(epoch_i+1)+'.pt'))
@@ -67,11 +75,15 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		################################## TEST ###################################
 		start = time.time()
-		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)', label_features)
+		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
 		elapsed = ((time.time()-start)/60)
 		print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
-		test_loss = test_loss/len(test_data._src_insts)
-		print('BCE_Loss : '+str(test_loss))
+		test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
+		print('Total_Loss : '+str(test_total_loss/len(test_data._src_insts)))
+		print('NLL_Loss : '+str(test_nll_loss/len(test_data._src_insts)))
+		print('NLL_X_Loss : '+str(test_nll_loss_x/len(test_data._src_insts)))
+		print('KL_Loss : '+str(test_kl_loss/len(test_data._src_insts)))
+		print('CPC_Loss : '+str(test_cpc_loss/len(test_data._src_insts)))
 
 		torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
 		torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))

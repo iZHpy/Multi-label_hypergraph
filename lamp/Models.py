@@ -14,7 +14,7 @@ from lamp import utils
 import copy
 from hyper.hypergraph import WeightedHypergraph
 from hyper.models import WeightedHypergraphModel
-from hyper.decoder import SimpleDecoder, ComplexDecoder
+from hyper.decoder import SimpleDecoder, ComplexDecoder, LatentDecoder
  
 
 class LAMP(nn.Module):
@@ -26,6 +26,7 @@ class LAMP(nn.Module):
 
         super(LAMP, self).__init__()
         self.onehot = onehot
+        self.n_src_vocab = n_src_vocab
 
         self.hypergraph = WeightedHypergraph(num_labels=n_tgt_vocab)
         self.hypergraph.create_from_labels(labels=train_labels)
@@ -39,18 +40,20 @@ class LAMP(nn.Module):
             special_token_init=special_token_init)
 
         ############# Label Encoder ###########
-        self.label_embedding = nn.Embedding(n_tgt_vocab, d_model)
+        self.label_embedding = nn.Linear(n_tgt_vocab, d_model)
+        self.dropout = nn.Dropout(label_enc_dropout)
+        
         self.label_encoder = WeightedHypergraphModel(num_labels=n_tgt_vocab, feature_dim=d_model, dropout_rate=label_enc_dropout ,
             num_layers=n_layers_label_enc, feature_aggregate=feature_aggregate, node2hyperedge_aggregate=node2hyperedge_aggregate, node_update=node_update,num_heads=n_head)
         
         ############# Decoder ###########
-
-        if decoder_type=='simple':
-            self.decoder = SimpleDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
-        elif decoder_type=='complex':
-            self.decoder = ComplexDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
-        else:
-            raise NotImplementedError
+        self.decoder = LatentDecoder(feature_dim=n_src_vocab-4, latent_dim=d_model, emb_size=d_model)
+        # if decoder_type=='simple':
+        #     self.decoder = SimpleDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
+        # elif decoder_type=='complex':
+        #     self.decoder = ComplexDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
+        # else:
+        #     raise NotImplementedError
 
 
     def get_trainable_parameters(self):
@@ -74,16 +77,98 @@ class LAMP(nn.Module):
         if self.training:
             self.cache_samples[start_idx:end_idx] = sample_features.squeeze(1).detach() 
         return sample_features
+    
+    def feat_forward(self, src_seq, adj, src_pos, x):
+        feat_latent = self.sample_encoder(src_seq, adj, src_pos).squeeze(1)
+        feat_emb = self.decoder(torch.cat((x, feat_latent), dim=1))
+        feat_out = {'feat_latent': feat_latent, 'feat_emb': feat_emb}
+        return feat_out
+
+    def label_forward(self, x, binary_tgt, feat_latent, start_index, end_index):
+        n_label = self.hypergraph.num_labels
+        all_labels = torch.eye(n_label).to(feat_latent.device)
+        h0 = self.dropout(F.relu(self.label_embedding(all_labels)))
+        label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=feat_latent, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
+        label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
+        label_emb = self.decoder(torch.cat((x, label_latent), dim=1))
+        label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
+        return label_out
+
+    def forward(self, src, adj, binary_tgt, start_index, end_index):
+        src_seq, src_pos, src_onehot = src
+
+        # sample_encode
+        fx_out = self.feat_forward(src_seq, adj, src_pos, src_onehot)
+        feat_latent = fx_out['feat_latent']
+        feat_emb = fx_out['feat_emb']
+         
+        # label_encode
+        fe_out = self.label_forward(src_onehot, binary_tgt, feat_latent, start_index, end_index)
+        label_emb = fe_out['label_emb']
+        # decode
+        embs = self.label_embedding.weight
+        label_out = torch.matmul(label_emb, embs)
+        feat_out = torch.matmul(feat_emb, embs)
         
-    def forward(self, src, adj, label_features, binary_tgt,start_index, end_index):
-        src_seq, src_pos = src
+        output = fe_out
+        output.update(fx_out)
+        output['embs'] = embs
+        output['label_out'] = label_out
+        output['feat_out'] = feat_out
 
-        sample_features = self.sample_encoder(src_seq, adj, src_pos)
-        # sample_features = self.cache_samples_func(src, adj, start_index, end_index)
-        if label_features is None:
-            label_features, _ = self.label_encoder(self.hypergraph, sample_features, start_index, end_index, device=sample_features.device)
+        return output
+    
+    
+def compute_loss(input_label, output, args=None):
+    label_out, label_space, label_emb, label_latent = \
+        output['label_out'], output['label_space'], output['label_emb'], output['label_latent']
+    feat_out, feat_emb, feat_latent = \
+        output['feat_out'], output['feat_emb'], output['feat_latent']
+    embs = output['embs']
 
-        # raise NotImplementedError
-        logits = self.decoder(sample_features, label_features).squeeze(1)
+    kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
 
-        return logits, label_features
+    pred_label = torch.sigmoid(label_out)
+    pred_feat = torch.sigmoid(feat_out)
+
+    def compute_BCE_and_RL_loss(E):
+        #compute negative log likelihood (BCE loss) for each sample point
+        sample_nll = -(
+            torch.log(E) * input_label + torch.log(1 - E) * (1 - input_label)
+        )
+        logprob = -torch.sum(sample_nll, dim=2)
+
+        #the following computation is designed to avoid the float overflow (log_sum_exp trick)
+        maxlogprob = torch.max(logprob, dim=0)[0]
+        Eprob = torch.mean(torch.exp(logprob - maxlogprob), axis=0)
+        nll_loss = torch.mean(-torch.log(Eprob) - maxlogprob)
+        return nll_loss
+
+    def supconloss(label_emb, feat_emb, embs, temp=1.0):
+        features = torch.cat((label_emb, feat_emb))
+        labels = torch.cat((input_label, input_label)).float()
+        n_label = labels.shape[1]
+        emb_labels = torch.eye(n_label).to(labels.device)
+        mask = torch.matmul(labels, emb_labels)
+
+        anchor_dot_contrast = torch.div(
+            torch.matmul(features, embs),
+            temp)
+        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
+        logits = anchor_dot_contrast - logits_max.detach()
+
+        exp_logits = torch.exp(logits)
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+
+        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
+        loss = -mean_log_prob_pos
+        loss = loss.mean()
+        return loss
+
+    nll_loss = compute_BCE_and_RL_loss(pred_label.unsqueeze(0))
+    nll_loss_x = compute_BCE_and_RL_loss(pred_feat.unsqueeze(0))
+    sum_nll_loss = nll_loss + nll_loss_x
+    cpc_loss = supconloss(label_emb, feat_emb, embs)
+    sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. + cpc_loss
+    return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, pred_label, pred_feat
+
