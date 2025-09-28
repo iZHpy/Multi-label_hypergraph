@@ -20,7 +20,7 @@ def test_epoch(model, test_data,opt,data_dict, description):
 	all_targets = torch.zeros(len(test_data._src_insts),out_len)
 	batch_idx = 0
 	batch_size = test_data._batch_size
-	total_loss = 0
+	total_loss, total_nll_loss, total_nll_loss_x, total_kl_loss, total_cpc_loss = 0,0,0,0,0
 
 	start_idx, end_idx = (batch_idx*batch_size), ((batch_idx+1)*batch_size)
 	for batch in tqdm(test_data, mininterval=0.5, desc=description, leave=False):
@@ -48,6 +48,10 @@ def test_epoch(model, test_data,opt,data_dict, description):
 			gold = gold[0:batch[0][0].size(0)]
 
 		total_loss += sum_loss.item()
+		total_nll_loss += nll_loss.item()
+		total_nll_loss_x += nll_loss_x.item()
+		total_kl_loss += kl_loss.item()
+		total_cpc_loss += cpc_loss.item()
 		pred_x = pred_x.data
 		gold_binary = gold_binary.data
 
@@ -61,5 +65,5 @@ def test_epoch(model, test_data,opt,data_dict, description):
 			end_idx = len(test_data._src_insts)
   
 	
-	return all_predictions, all_targets, total_loss
+	return all_predictions, all_targets, (total_loss, total_nll_loss, total_nll_loss_x, total_kl_loss, total_cpc_loss)
 

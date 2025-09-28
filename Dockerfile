@@ -4,6 +4,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu22.04
 
 # install micromamba (lightweight conda)
 ARG MAMBA_VERSION=1.5.8
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends curl bzip2 ca-certificates tini && \
     curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/${MAMBA_VERSION} \
     | tar -xvj -C /usr/local/bin bin/micromamba --strip-components=1 && \
