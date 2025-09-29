@@ -34,7 +34,7 @@ RUN micromamba run -n $ENV_NAME pip install --no-cache-dir --prefer-binary \
 
 # 3) 最后装纯 Python 的 torch-geometric
 RUN micromamba run -n $ENV_NAME pip install torch-geometric==2.6.0
-
+RUN micromamba run -n $ENV_NAME pip install OhMyRunPod
 
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/$ENV_NAME/bin:$PATH
 
