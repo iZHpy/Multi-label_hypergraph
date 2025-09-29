@@ -84,11 +84,11 @@ class SimpleDecoder(nn.Module):
         return logits
     
 class LatentDecoder(nn.Module):
-    def __init__(self, feature_dim, latent_dim, emb_size):
+    def __init__(self, latent_dim, emb_size):
         super(LatentDecoder, self).__init__()
 
         self.fd = nn.Sequential(
-            nn.Linear(feature_dim + latent_dim, 512),
+            nn.Linear(latent_dim, 512),
             nn.ReLU(),
             nn.Linear(512, emb_size),
             nn.LeakyReLU()

@@ -20,7 +20,7 @@ from hyper.decoder import SimpleDecoder, ComplexDecoder, LatentDecoder
 class LAMP(nn.Module):
     def __init__(
             self, n_src_vocab, n_tgt_vocab, n_max_seq_e, train_labels, n_layers_sample_enc=6,
-            n_layers_label_enc=6,n_head=8,d_word_vec=512, d_model=512, d_inner_hid=1024,
+            n_layers_label_enc=6,n_head=8,d_word_vec=512, d_model=512, d_emb=512, d_inner_hid=1024, d_latent=64,
             d_k=64, d_v=64,sample_enc_dropout=0.1, label_enc_dropout=0.1,decoder_type='simple',enc_transform='special_token',
             special_token_init='default', feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple',onehot=False,no_enc_pos_embedding=False):
 
@@ -34,7 +34,7 @@ class LAMP(nn.Module):
         ############# Sample Encoder ###########
         self.sample_encoder = GraphEncoder( 
             n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
-            d_word_vec=d_word_vec, d_model=d_model,d_k=d_k, d_v=d_v,
+            d_word_vec=d_word_vec, d_model=d_model, d_latent=d_latent, d_k=d_k, d_v=d_v,
             d_inner_hid=d_inner_hid, onehot=onehot, dropout=sample_enc_dropout,
             no_enc_pos_embedding=no_enc_pos_embedding,enc_transform=enc_transform,
             special_token_init=special_token_init)
@@ -43,11 +43,11 @@ class LAMP(nn.Module):
         self.label_embedding = nn.Linear(n_tgt_vocab, d_model)
         self.dropout = nn.Dropout(label_enc_dropout)
         
-        self.label_encoder = WeightedHypergraphModel(num_labels=n_tgt_vocab, feature_dim=d_model, dropout_rate=label_enc_dropout ,
+        self.label_encoder = WeightedHypergraphModel(num_labels=n_tgt_vocab, feature_dim=d_model, d_latent=d_latent, dropout_rate=label_enc_dropout ,
             num_layers=n_layers_label_enc, feature_aggregate=feature_aggregate, node2hyperedge_aggregate=node2hyperedge_aggregate, node_update=node_update,num_heads=n_head)
         
         ############# Decoder ###########
-        self.decoder = LatentDecoder(feature_dim=n_src_vocab-4, latent_dim=d_model, emb_size=d_model)
+        self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
         # if decoder_type=='simple':
         #     self.decoder = SimpleDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
         # elif decoder_type=='complex':
@@ -68,19 +68,9 @@ class LAMP(nn.Module):
     
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 
-    def initialize_cache(self, num_samples):
-        self.cache_samples = torch.zeros(num_samples, self.sample_encoder.d_model)
-
-    def cache_samples_func(self, src, adj, start_idx, end_idx):
-        src_seq, src_pos = src
-        sample_features = self.sample_encoder(src_seq, adj, src_pos)
-        if self.training:
-            self.cache_samples[start_idx:end_idx] = sample_features.squeeze(1).detach() 
-        return sample_features
-    
     def feat_forward(self, src_seq, adj, src_pos, x):
         feat_latent = self.sample_encoder(src_seq, adj, src_pos).squeeze(1)
-        feat_emb = self.decoder(torch.cat((x, feat_latent), dim=1))
+        feat_emb = self.decoder(feat_latent)
         feat_out = {'feat_latent': feat_latent, 'feat_emb': feat_emb}
         return feat_out
 
@@ -90,7 +80,7 @@ class LAMP(nn.Module):
         h0 = self.dropout(F.relu(self.label_embedding(all_labels)))
         label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=feat_latent, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
         label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
-        label_emb = self.decoder(torch.cat((x, label_latent), dim=1))
+        label_emb = self.decoder(label_latent)
         label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
         return label_out
 

@@ -23,6 +23,8 @@ def get_args(parser):
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-test_batch_size', type=int, default=-1)
     parser.add_argument('-d_model', type=int, default=512)  # model dimension
+    parser.add_argument('-d_emb', type=int, default=512)  # embedding dimension
+    parser.add_argument('-d_latent', type=int, default=64)  # latent dimension
     parser.add_argument('-d_inner_hid', type=int, default=-1)  # model hidden dimension
     parser.add_argument('-d_k', type=int, default=-1)
     parser.add_argument('-d_v', type=int, default=-1)

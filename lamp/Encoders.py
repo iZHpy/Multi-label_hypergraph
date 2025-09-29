@@ -30,7 +30,7 @@ class MLPEncoder(nn.Module):
 class GraphEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=512, d_model=512, d_inner_hid=1024, onehot=False, enc_transform='special_token',
+            d_word_vec=512, d_model=512, d_latent=64, d_inner_hid=1024, onehot=False, enc_transform='special_token',
             special_token_init='normal', dropout=0.1, no_enc_pos_embedding=False):
 
         super(GraphEncoder, self).__init__()
@@ -38,6 +38,7 @@ class GraphEncoder(nn.Module):
         n_position = n_max_seq + 1  # 0, 1, 2, ..., N
         self.n_max_seq = n_max_seq
         self.d_model = d_model
+        self.latent_dim = d_latent
         self.onehot = onehot
         self.enc_transform = enc_transform
         self.dropout = nn.Dropout(dropout)
@@ -78,7 +79,8 @@ class GraphEncoder(nn.Module):
                 self.special_token_emb = nn.Parameter(torch.normal(0, 0.02, size=(1, 1, d_model)))
             else:
                 raise ValueError("Unsupported initialization method")
-
+        self.encoder_project = nn.Linear(d_model, d_latent)
+        
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
         enc_input = self.src_word_emb(src_seq)
@@ -125,6 +127,7 @@ class GraphEncoder(nn.Module):
             raise ValueError("not use enc_transform")
 
         enc_output = enc_output.view(batch_size, 1, -1)
+        enc_output = self.encoder_project(enc_output)
 
         return enc_output
 
