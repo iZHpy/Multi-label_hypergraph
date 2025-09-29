@@ -118,22 +118,19 @@ def compute_loss(input_label, output, args=None):
 
     # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
     kl_loss = torch.tensor(0.).to(label_out.device)
+
+    def compute_BCE_and_RL_loss(E):
+        #compute negative log likelihood (BCE loss) for each sample point
+        sample_nll = -(
+            torch.log(E) * input_label + torch.log(1 - E) * (1 - input_label)
+        )
+        logprob = -torch.sum(sample_nll, dim=-1)
     
-    pred_label = torch.sigmoid(label_out)
-    pred_feat = torch.sigmoid(feat_out)
-
-    # def compute_BCE_and_RL_loss(E):
-    #     #compute negative log likelihood (BCE loss) for each sample point
-    #     sample_nll = -(
-    #         torch.log(E) * input_label + torch.log(1 - E) * (1 - input_label)
-    #     )
-    #     logprob = -torch.sum(sample_nll, dim=2)
-
-    #     #the following computation is designed to avoid the float overflow (log_sum_exp trick)
-    #     maxlogprob = torch.max(logprob, dim=0)[0]
-    #     Eprob = torch.mean(torch.exp(logprob - maxlogprob), axis=0)
-    #     nll_loss = torch.mean(-torch.log(Eprob) - maxlogprob)
-    #     return nll_loss
+        #the following computation is designed to avoid the float overflow (log_sum_exp trick)
+        maxlogprob = torch.max(logprob)
+        Eprob = torch.mean(torch.exp(logprob - maxlogprob), axis=0)
+        nll_loss = torch.mean(-torch.log(Eprob) - maxlogprob)
+        return nll_loss
 
     def supconloss(label_emb, feat_emb, embs, temp=1.0):
         features = torch.cat((label_emb, feat_emb))
@@ -156,12 +153,10 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    # nll_loss = compute_BCE_and_RL_loss(pred_label.unsqueeze(0))
-    # nll_loss_x = compute_BCE_and_RL_loss(pred_feat.unsqueeze(0))
-    nll_loss = F.binary_cross_entropy(pred_label, input_label)
-    nll_loss_x = F.binary_cross_entropy(pred_feat, input_label)
+    nll_loss = F.binary_cross_entropy_with_logits(label_out, input_label)
+    nll_loss_x = F.binary_cross_entropy_with_logits(feat_out, input_label)
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(label_emb, feat_emb, embs)
     sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. + cpc_loss
-    return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, pred_label, pred_feat
+    return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 

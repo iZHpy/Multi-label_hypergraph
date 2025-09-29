@@ -40,11 +40,11 @@ def test_epoch(model, test_data,opt,data_dict, description):
 			tgt = torch.cat((tgt,torch.zeros(diff,tgt.size(1)).type(tgt.type()).to(opt.device)),0)
 		gold_binary = utils.get_gold_binary(gold.data.cpu(),opt.tgt_vocab_size).to(opt.device)
 		output = model(src,adj,gold_binary,start_idx, end_idx)
-		sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, pred_x = \
+		sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, feat_out = \
                     compute_loss(gold_binary, output, opt)
 
 		if pad_batch:
-			pred_x = pred_x[0:batch[0][0].size(0)]
+			feat_out = feat_out[0:batch[0][0].size(0)]
 			gold = gold[0:batch[0][0].size(0)]
 
 		total_loss += sum_loss.item()
@@ -52,11 +52,11 @@ def test_epoch(model, test_data,opt,data_dict, description):
 		total_nll_loss_x += nll_loss_x.item()
 		total_kl_loss += kl_loss.item()
 		total_cpc_loss += cpc_loss.item()
-		pred_x = pred_x.data
+		feat_out = torch.sigmoid(feat_out).data
 		gold_binary = gold_binary.data
 
 
-		all_predictions[start_idx:end_idx] = pred_x
+		all_predictions[start_idx:end_idx] = feat_out
 		all_targets[start_idx:end_idx] = gold_binary
 			
 		batch_idx+=1

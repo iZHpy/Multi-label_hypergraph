@@ -34,7 +34,7 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 		gold_binary = utils.get_gold_binary(gold.data.cpu(),opt.tgt_vocab_size).to(opt.device)
 		optimizer.zero_grad()
 		output = model(src,adj,gold_binary,start_idx, end_idx)
-		sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, pred_x = \
+		sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, feat_out = \
                     compute_loss(gold_binary, output, opt)
 		loss += sum_loss
 		total_loss += sum_loss.item()
@@ -45,9 +45,8 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 		loss.backward()
 		optimizer.step()
 		tgt_out = gold_binary.data
-		pred_out = pred_x.data
+		pred_out = torch.sigmoid(feat_out).data
 
-		
 		## Updates ##
 		# start_idx, end_idx = (batch_idx*batch_size),((batch_idx+1)*batch_size)
 		all_predictions[start_idx:end_idx] = pred_out
