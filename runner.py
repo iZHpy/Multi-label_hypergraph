@@ -6,6 +6,7 @@ import torch, torch.nn as nn, torch.nn.functional as F
 import Hyperlabel.Constants as Constants
 from Hyperlabel.Models import Hyperlabel
 from Hyperlabel.Translator import translate
+from Hyperlabel.Constants import THRESHOLDS
 from config_args import config_args,get_args
 from pdb import set_trace as stop
 from tqdm import tqdm
@@ -34,6 +35,9 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		return
 
 	loss_file = open(path.join(opt.model_name,'losses.csv'),'w+')
+ 
+	best_valid_metrics = {'loss':1000000,'ACC':0,'HA':0,'ebF1':0,'miF1':0,'maF1':0,'meanAUC':0,'medianAUC':0,'meanAUPR':0,'medianAUPR':0,'meanFDR':0,'medianFDR':0,'allAUC':None,'allAUPR':None}
+
 	for epoch_i in range(opt.epoch):
 		print('================= Epoch', epoch_i+1, '=================')
 		if scheduler and opt.lr_decay > 0: scheduler.step()
@@ -57,6 +61,8 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		train_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)  
 
 		################################### VALID ###################################
+  
+  
 		start = time.time()
 		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,data_dict,'(Validation)')
 		elapsed = ((time.time()-start)/60)
@@ -70,27 +76,43 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		# torch.save(all_predictions,path.join(opt.model_name,'epochs','valid_preds'+str(epoch_i+1)+'.pt'))
 		# torch.save(all_targets,path.join(opt.model_name,'epochs','valid_targets'+str(epoch_i+1)+'.pt'))
-		valid_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)
+		valid_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		valid_losses += [valid_loss]
+  
+  
+		metric = 'ebF1' # choose metric for saving best model
+		if  valid_metrics[metric] >= best_valid_metrics[metric]:
+			best_valid_metrics = valid_metrics
 
-		################################## TEST ###################################
-		start = time.time()
-		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
-		elapsed = ((time.time()-start)/60)
-		print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
-		test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
-		print('Total_Loss : '+str(test_total_loss/len(test_data._src_insts)))
-		print('NLL_Loss : '+str(test_nll_loss/len(test_data._src_insts)))
-		print('NLL_X_Loss : '+str(test_nll_loss_x/len(test_data._src_insts)))
-		print('KL_Loss : '+str(test_kl_loss/len(test_data._src_insts)))
-		print('CPC_Loss : '+str(test_cpc_loss/len(test_data._src_insts)))
+			################################## TEST ###################################
+			start = time.time()
+			all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
+			elapsed = ((time.time()-start)/60)
+			print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
+			test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
+			print('Total_Loss : '+str(test_total_loss/len(test_data._src_insts)))
+			print('NLL_Loss : '+str(test_nll_loss/len(test_data._src_insts)))
+			print('NLL_X_Loss : '+str(test_nll_loss_x/len(test_data._src_insts)))
+			print('KL_Loss : '+str(test_kl_loss/len(test_data._src_insts)))
+			print('CPC_Loss : '+str(test_cpc_loss/len(test_data._src_insts)))
 
-		# torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
-		# torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))
-		test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)
+			# torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
+			# torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))
+			test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		
 		best_valid,best_test = logger.evaluate(train_metrics,valid_metrics,test_metrics,epoch_i,opt.total_num_parameters)
-
+  
+		print('\n')
+		print('**********************************')
+		print('best ACC:  '+str(best_test['ACC']))
+		print('best HA:   '+str(best_test['HA']))
+		print('best ebF1: '+str(best_test['ebF1']))
+		print('best miF1: '+str(best_test['miF1']))
+		print('best maF1: '+str(best_test['maF1']))
+		print('best meanAUC:  '+str(best_test['meanAUC']))
+		print('best meanAUPR: '+str(best_test['meanAUPR']))
+		print('best meanFDR: '+str(best_test['meanFDR']))
+		print('**********************************')
 		print(opt.model_name)
 
 		losses.append([epoch_i+1,train_loss,valid_loss,test_loss])

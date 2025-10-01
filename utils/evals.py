@@ -313,7 +313,7 @@ def Find_Optimal_Cutoff(all_targets, all_predictions):
     return thresh_array
 
 
-def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=True,verbose=True):
+def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=True,verbose=True, THRESHOLDS=None):
     all_targets = all_targets.numpy()
     all_predictions = all_predictions.numpy()
 
@@ -329,69 +329,46 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
         meanAUPR,medianAUPR,varAUPR,allAUPR = 0,0,0,0
         meanFDR,medianFDR,varFDR,allFDR = 0,0,0,0
 
-
-    optimal_threshold = args.br_threshold
-    
-    # optimal_thresholds = Find_Optimal_Cutoff(all_targets,all_predictions)
-    # optimal_threshold = numpy.mean(numpy.array(optimal_thresholds))
-    
-
-
-    all_predictions[all_predictions < optimal_threshold] = 0
-    all_predictions[all_predictions >= optimal_threshold] = 1
-
-
-    
-        
-    acc_ = list(subset_accuracy(all_targets, all_predictions, axis=1, per_sample=True))
-    hl_ = list(hamming_loss(all_targets, all_predictions, axis=1, per_sample=True))
-    exf1_ = list(example_f1_score(all_targets, all_predictions, axis=1, per_sample=True))        
-    acc = numpy.mean(acc_)
-    hl = numpy.mean(hl_)
-    exf1 = numpy.mean(exf1_)
-    
-
-    tp, fp, fn = compute_tp_fp_fn(all_targets, all_predictions, axis=0)
-    mif1 = f1_score_from_stats(tp, fp, fn, average='micro')
-    maf1 = f1_score_from_stats(tp, fp, fn, average='macro')
-
-    
-
-    eval_ret = OrderedDict([('Subset accuracy', acc),
-                        ('Hamming accuracy', 1 - hl),
-                        ('Example-based F1', exf1),
-                        ('Label-based Micro F1', mif1),
-                        ('Label-based Macro F1', maf1)])
-
-    
-    ACC = eval_ret['Subset accuracy']
-    HA = eval_ret['Hamming accuracy']
-    ebF1 = eval_ret['Example-based F1']
-    miF1 = eval_ret['Label-based Micro F1']
-    maF1 = eval_ret['Label-based Macro F1']
-    if verbose:
-        print('ACC:   '+str(ACC))
-        print('HA:    '+str(HA))
-        print('ebF1:  '+str(ebF1))
-        print('miF1:  '+str(miF1))
-        print('maF1:  '+str(maF1))
-
-
-    
-    if verbose:
-        print('uAUC:  '+str(meanAUC))
-        # print('mAUC:  '+str(medianAUC))
-        print('uAUPR: '+str(meanAUPR))
-        # print('mAUPR: '+str(medianAUPR))
-        print('uFDR: '+str(meanFDR))
-        # print('mFDR:  '+str(medianFDR))
-
     metrics_dict = {}
-    metrics_dict['ACC'] = ACC
-    metrics_dict['HA'] = HA
-    metrics_dict['ebF1'] = ebF1
-    metrics_dict['miF1'] = miF1
-    metrics_dict['maF1'] = maF1
+
+    for optimal_threshold in (THRESHOLDS if THRESHOLDS is not None else [0.5]):
+
+        all_predictions[all_predictions < optimal_threshold] = 0
+        all_predictions[all_predictions >= optimal_threshold] = 1
+            
+        acc_ = list(subset_accuracy(all_targets, all_predictions, axis=1, per_sample=True))
+        hl_ = list(hamming_loss(all_targets, all_predictions, axis=1, per_sample=True))
+        exf1_ = list(example_f1_score(all_targets, all_predictions, axis=1, per_sample=True))        
+        acc = numpy.mean(acc_)
+        hl = numpy.mean(hl_)
+        exf1 = numpy.mean(exf1_)
+        
+
+        tp, fp, fn = compute_tp_fp_fn(all_targets, all_predictions, axis=0)
+        mif1 = f1_score_from_stats(tp, fp, fn, average='micro')
+        maf1 = f1_score_from_stats(tp, fp, fn, average='macro')
+
+        
+
+        eval_ret = OrderedDict([('Subset accuracy', acc),
+                            ('Hamming accuracy', 1 - hl),
+                            ('Example-based F1', exf1),
+                            ('Label-based Micro F1', mif1),
+                            ('Label-based Macro F1', maf1)])
+
+        
+        ACC = eval_ret['Subset accuracy']
+        HA = eval_ret['Hamming accuracy']
+        ebF1 = eval_ret['Example-based F1']
+        miF1 = eval_ret['Label-based Micro F1']
+        maF1 = eval_ret['Label-based Macro F1']
+        
+        metrics_dict['ACC'] = max(metrics_dict.get('ACC',0), ACC)
+        metrics_dict['HA'] = max(metrics_dict.get('HA',0), HA)
+        metrics_dict['ebF1'] = max(metrics_dict.get('ebF1',0), ebF1)
+        metrics_dict['miF1'] = max(metrics_dict.get('miF1',0), miF1)
+        metrics_dict['maF1'] = max(metrics_dict.get('maF1',0), maF1)
+        
     metrics_dict['meanAUC'] = meanAUC
     metrics_dict['medianAUC'] = medianAUC
     metrics_dict['meanAUPR'] = meanAUPR
@@ -403,6 +380,19 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
     metrics_dict['loss'] = loss
     metrics_dict['time'] = elapsed
 
+    if verbose:
+        print('ACC:   '+str(ACC))
+        print('HA:    '+str(HA))
+        print('ebF1:  '+str(ebF1))
+        print('miF1:  '+str(miF1))
+        print('maF1:  '+str(maF1))
+        print('uAUC:  '+str(meanAUC))
+        # print('mAUC:  '+str(medianAUC))
+        print('uAUPR: '+str(meanAUPR))
+        # print('mAUPR: '+str(medianAUPR))
+        print('uFDR: '+str(meanFDR))
+        # print('mFDR:  '+str(medianFDR))
+        
     return metrics_dict
 
 
@@ -533,24 +523,11 @@ class Logger:
 
 
         for metric in valid_metrics.keys():
-            if not 'all' in metric and not 'time'in metric:
+            if not 'all' in metric and not 'time' in metric:
                 if  valid_metrics[metric] >= self.best_valid[metric]:
                     self.best_valid[metric]= valid_metrics[metric]
                     self.best_test[metric]= test_metrics[metric]
                     if metric == 'ACC':
                         self.best_test['epoch'] = epoch
-
-         
-        print('\n')
-        print('**********************************')
-        print('best ACC:  '+str(self.best_test['ACC']))
-        print('best HA:   '+str(self.best_test['HA']))
-        print('best ebF1: '+str(self.best_test['ebF1']))
-        print('best miF1: '+str(self.best_test['miF1']))
-        print('best maF1: '+str(self.best_test['maF1']))
-        print('best meanAUC:  '+str(self.best_test['meanAUC']))
-        print('best meanAUPR: '+str(self.best_test['meanAUPR']))
-        print('best meanFDR: '+str(self.best_test['meanFDR']))
-        print('**********************************')
 
         return self.best_valid,self.best_test
