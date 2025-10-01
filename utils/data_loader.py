@@ -8,13 +8,6 @@ from pdb import set_trace as stop
 import utils
 from os import path
 
-def process_onehot(data, type='train'):
-    data[type]['onehot'] = []
-    for i, sample in enumerate(data[type]['src']):
-        indices = torch.from_numpy(np.array(sample)).long()
-        x = torch.zeros(len(data['dict']['src']))
-        x.index_fill_(0, indices, 1)
-        data[type]['onehot'].append(x[4:]) # remove special tokens
 
 def process_data(data,opt):
 
@@ -42,12 +35,9 @@ def process_data(data,opt):
 
 
     opt.max_token_seq_len_e = data['settings'].max_seq_len
-    
+ 
     # if opt.summarize_data:
     #     utils.summarize_data(data)
-    process_onehot(data, type='train')
-    process_onehot(data, type='valid')
-    process_onehot(data, type='test')
 
     if not 'sider' in opt.dataset:
         data['train']['adj'],data['valid']['adj'],data['test']['adj'] = None,None,None
@@ -56,7 +46,6 @@ def process_data(data,opt):
     train_data = DataLoader(
         data['dict']['src'],
         data['dict']['tgt'],
-        data['train']['onehot'],
         src_insts=data['train']['src'],
         adj_insts=data['train']['adj'],
         tgt_insts=data['train']['tgt'],
@@ -68,7 +57,6 @@ def process_data(data,opt):
     valid_data = DataLoader(
         data['dict']['src'],
         data['dict']['tgt'], 
-        data['valid']['onehot'],
         src_insts=data['valid']['src'],
         adj_insts=data['valid']['adj'],
         tgt_insts=data['valid']['tgt'],
@@ -79,7 +67,6 @@ def process_data(data,opt):
     test_data = DataLoader(
         data['dict']['src'],
         data['dict']['tgt'], 
-        data['test']['onehot'],
         src_insts=data['test']['src'],
         adj_insts=data['test']['adj'],
         tgt_insts=data['test']['tgt'],
@@ -99,7 +86,7 @@ class DataLoader(object):
     ''' For data iteration '''
 
     def __init__(
-            self, src_word2idx, tgt_word2idx, src_onehot,
+            self, src_word2idx, tgt_word2idx,
             src_insts=None, adj_insts=None, tgt_insts=None,
             device= torch.device("cuda"), batch_size=64, shuffle=True,
             drop_last=False):
@@ -122,8 +109,6 @@ class DataLoader(object):
             self._n_batch -= 1
 
         self._batch_size = batch_size
-
-        self._src_onehot = src_onehot
 
         self._src_insts = src_insts
         
@@ -190,17 +175,15 @@ class DataLoader(object):
     def shuffle(self):
         ''' Shuffle data for a brand new start '''
         if self._tgt_insts and self._adj_insts:
-            paired_insts = list(zip(self._src_insts, self._adj_insts,self._tgt_insts, self._src_onehot))
+            paired_insts = list(zip(self._src_insts, self._adj_insts,self._tgt_insts))
             random.shuffle(paired_insts)
-            self._src_insts, self._adj_insts, self._tgt_insts, self._src_onehot = zip(*paired_insts)
+            self._src_insts, self._adj_insts, self._tgt_insts = zip(*paired_insts)
         elif self._tgt_insts:
-            paired_insts = list(zip(self._src_insts,self._tgt_insts, self._src_onehot))
+            paired_insts = list(zip(self._src_insts,self._tgt_insts))
             random.shuffle(paired_insts)
-            self._src_insts, self._tgt_insts, self._src_onehot = zip(*paired_insts)
+            self._src_insts, self._tgt_insts = zip(*paired_insts)
         else:
-            paired_insts = list(zip(self._src_insts, self._src_onehot))
-            random.shuffle(paired_insts)
-            self._src_insts, self._src_onehot = zip(*paired_insts)
+            random.shuffle(self._src_insts)
 
 
     def __iter__(self):
@@ -261,7 +244,6 @@ class DataLoader(object):
             end_idx = (batch_idx + 1) * self._batch_size
 
             src_insts = self._src_insts[start_idx:end_idx]
-            src_onehot = torch.stack(self._src_onehot[start_idx:end_idx]).to(self.device)
 
             if self._adj_insts:
                 adj_insts = construct_adj_mat(self._adj_insts[start_idx:end_idx])
@@ -278,13 +260,13 @@ class DataLoader(object):
 
 
             if not self._tgt_insts:
-                return src_data, src_pos, src_onehot
+                return src_data, src_pos
             else:
                 tgt_insts = self._tgt_insts[start_idx:end_idx]
                 tgt_data, tgt_pos = pad_to_longest(tgt_insts)
                 tgt_data = tgt_data.long()
                 tgt_pos = tgt_pos.long()
-                return (src_data, src_pos, src_onehot), (adj_insts), tgt_data
+                return (src_data, src_pos), (adj_insts), tgt_data
 
         else:
 

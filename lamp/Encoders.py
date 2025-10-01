@@ -16,21 +16,21 @@ import copy
 class MLPEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=512, d_model=512, d_inner_hid=1024, onehot=False, dropout=0.1):
+            d_word_vec=64, d_model=512, d_inner_hid=1024, feat_mode='float', dropout=0.1):
         super(MLPEncoder, self).__init__()
         self.n_max_seq = n_max_seq
         self.d_model = d_model
         self.linear1 = nn.Linear(n_src_vocab,d_model)
 
-    def forward(self, src_seq, adj, src_pos, return_attns=False):
+    def forward(self, src_seq, adj, src_pos):
         enc_output = self.linear1(src_seq)
-        return enc_output.view(src_seq.size(0),1,-1),None
+        return enc_output.view(src_seq.size(0),1,-1)
 
 
 class GraphEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=512, d_model=512, d_latent=64, d_inner_hid=1024, onehot=False, enc_transform='special_token',
+            d_word_vec=64, d_model=512, d_latent=64, d_inner_hid=1024, feat_mode='tokens', enc_transform='special_token',
             special_token_init='normal', dropout=0.1, no_enc_pos_embedding=False):
 
         super(GraphEncoder, self).__init__()
@@ -39,19 +39,21 @@ class GraphEncoder(nn.Module):
         self.n_max_seq = n_max_seq
         self.d_model = d_model
         self.latent_dim = d_latent
-        self.onehot = onehot
+        self.feat_mode = feat_mode
         self.enc_transform = enc_transform
         self.dropout = nn.Dropout(dropout)
 
-        if onehot:
-            self.src_word_emb = nn.Embedding(n_src_vocab, n_src_vocab, padding_idx=Constants.PAD)
+        if feat_mode == 'onehot':
+            self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
             self.src_word_emb.weight.data.fill_(0)
             self.src_word_emb.weight.data[1:, 1:] = torch.eye(self.src_word_emb.weight.data[1:].size(0))
             self.conv1 = nn.Conv1d(9, d_model, 16, stride=1, padding=8, dilation=1, groups=1, bias=True)
             self.conv2 = nn.Conv1d(d_model, d_model, 16, stride=1, padding=8, dilation=1, groups=1, bias=True)
-        else:
+        elif feat_mode == 'tokens':
             self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
-
+        else:
+            raise ValueError("Use MLPEncoder for float features")
+            
         if no_enc_pos_embedding is False:
             self.position_enc = nn.Embedding(n_position, d_word_vec, padding_idx=Constants.PAD)
             self.position_enc.weight.data = utils.position_encoding_init(n_position, d_word_vec)
@@ -83,9 +85,9 @@ class GraphEncoder(nn.Module):
         
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
-        enc_input = self.src_word_emb(src_seq)
 
-        if self.onehot:
+        enc_input = self.src_word_emb(src_seq)
+        if self.feat_mode == 'onehot':
             enc_input = F.relu(self.dropout(self.conv1(enc_input.transpose(1, 2))))[:, :, 0:-1]
             enc_input = F.max_pool1d(enc_input, 2, 2)
             enc_input = F.relu(self.conv2(enc_input).transpose(1, 2))[:, 0:-1, :]
@@ -93,7 +95,7 @@ class GraphEncoder(nn.Module):
             src_seq = src_seq[:, 0:enc_input.size(1)]
         elif hasattr(self, 'position_enc'):
             enc_input += self.position_enc(src_pos)
-
+        
         if self.enc_transform == 'special_token':
             special_token = self.special_token_emb.expand(batch_size, -1, -1)
             enc_input = torch.cat([special_token, enc_input], dim=1)
@@ -134,13 +136,13 @@ class GraphEncoder(nn.Module):
 class RNNEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=512, d_model=512, d_inner_hid=1024, onehot=False, dropout=0.1):
+            d_word_vec=64, d_model=512, d_inner_hid=1024, feat_mode='tokens', dropout=0.1):
 
         super(RNNEncoder, self).__init__()
-        
-        self.onehot = onehot
 
-        if onehot:
+        self.feat_mode = feat_mode
+        
+        if feat_mode == 'onehot':
             d_word_vec = 9
             self.src_word_emb = nn.Embedding(n_src_vocab, n_src_vocab, padding_idx=Constants.PAD)
             self.src_word_emb.weight.data.fill_(0)

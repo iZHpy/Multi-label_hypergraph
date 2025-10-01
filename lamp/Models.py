@@ -22,22 +22,28 @@ class LAMP(nn.Module):
             self, n_src_vocab, n_tgt_vocab, n_max_seq_e, train_labels, n_layers_sample_enc=6,
             n_layers_label_enc=6,n_head=8,d_word_vec=512, d_model=512, d_emb=512, d_inner_hid=1024, d_latent=64,
             d_k=64, d_v=64,sample_enc_dropout=0.1, label_enc_dropout=0.1,decoder_type='simple',enc_transform='special_token',
-            special_token_init='default', feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple',onehot=False,no_enc_pos_embedding=False):
+            special_token_init='default', feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple',feat_mode='tokens',no_enc_pos_embedding=False):
 
         super(LAMP, self).__init__()
-        self.onehot = onehot
+        self.feat_mode = feat_mode
         self.n_src_vocab = n_src_vocab
 
         self.hypergraph = WeightedHypergraph(num_labels=n_tgt_vocab)
         self.hypergraph.create_from_labels(labels=train_labels)
         
         ############# Sample Encoder ###########
-        self.sample_encoder = GraphEncoder( 
-            n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
-            d_word_vec=d_word_vec, d_model=d_model, d_latent=d_latent, d_k=d_k, d_v=d_v,
-            d_inner_hid=d_inner_hid, onehot=onehot, dropout=sample_enc_dropout,
-            no_enc_pos_embedding=no_enc_pos_embedding,enc_transform=enc_transform,
-            special_token_init=special_token_init)
+        if feat_mode == 'float':
+            self.sample_encoder = MLPEncoder( 
+                n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
+                d_word_vec=d_word_vec, d_model=d_model, d_k=d_k, d_v=d_v,
+                d_inner_hid=d_inner_hid, feat_mode='float', dropout=sample_enc_dropout)
+        else:
+            self.sample_encoder = GraphEncoder( 
+                n_src_vocab, n_max_seq_e, n_layers=n_layers_sample_enc, n_head=n_head,
+                d_word_vec=d_word_vec, d_model=d_model, d_latent=d_latent, d_k=d_k, d_v=d_v,
+                d_inner_hid=d_inner_hid, feat_mode=feat_mode, dropout=sample_enc_dropout,
+                no_enc_pos_embedding=no_enc_pos_embedding,enc_transform=enc_transform,
+                special_token_init=special_token_init)
 
         ############# Label Encoder ###########
         self.label_embedding = nn.Linear(n_tgt_vocab, d_model)
@@ -48,12 +54,6 @@ class LAMP(nn.Module):
         
         ############# Decoder ###########
         self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
-        # if decoder_type=='simple':
-        #     self.decoder = SimpleDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
-        # elif decoder_type=='complex':
-        #     self.decoder = ComplexDecoder(feature_dim=d_model, num_labels=n_tgt_vocab)
-        # else:
-        #     raise NotImplementedError
 
 
     def get_trainable_parameters(self):
@@ -62,19 +62,19 @@ class LAMP(nn.Module):
         if hasattr(self.sample_encoder, 'position_enc'):
             enc_freezed_param_ids = set(map(id, self.sample_encoder.position_enc.parameters()))
             freezed_param_ids = freezed_param_ids | enc_freezed_param_ids
-        if self.onehot:
+        if self.feat_mode == 'onehot':
             enc_onehot_param_ids = set(map(id, self.sample_encoder.src_word_emb.parameters()))
             freezed_param_ids = freezed_param_ids | enc_onehot_param_ids
     
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 
-    def feat_forward(self, src_seq, adj, src_pos, x):
+    def feat_forward(self, src_seq, adj, src_pos):
         feat_latent = self.sample_encoder(src_seq, adj, src_pos).squeeze(1)
         feat_emb = self.decoder(feat_latent)
         feat_out = {'feat_latent': feat_latent, 'feat_emb': feat_emb}
         return feat_out
 
-    def label_forward(self, x, binary_tgt, feat_latent, start_index, end_index):
+    def label_forward(self, binary_tgt, feat_latent, start_index, end_index):
         n_label = self.hypergraph.num_labels
         all_labels = torch.eye(n_label).to(feat_latent.device)
         h0 = self.dropout(F.relu(self.label_embedding(all_labels)))
@@ -85,15 +85,15 @@ class LAMP(nn.Module):
         return label_out
 
     def forward(self, src, adj, binary_tgt, start_index, end_index):
-        src_seq, src_pos, src_onehot = src
+        src_seq, src_pos = src
 
         # sample_encode
-        fx_out = self.feat_forward(src_seq, adj, src_pos, src_onehot)
+        fx_out = self.feat_forward(src_seq, adj, src_pos)
         feat_latent = fx_out['feat_latent']
         feat_emb = fx_out['feat_emb']
          
         # label_encode
-        fe_out = self.label_forward(src_onehot, binary_tgt, feat_latent, start_index, end_index)
+        fe_out = self.label_forward(binary_tgt, feat_latent, start_index, end_index)
         label_emb = fe_out['label_emb']
         # decode
         embs = self.label_embedding.weight
@@ -141,10 +141,11 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = F.binary_cross_entropy_with_logits(label_out, input_label)
-    nll_loss_x = F.binary_cross_entropy_with_logits(feat_out, input_label)
+    nll_loss = F.binary_cross_entropy_with_logits(label_out, input_label, reduction='mean')
+    nll_loss_x = F.binary_cross_entropy_with_logits(feat_out, input_label, reduction='mean')
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. + cpc_loss
+    sum_loss = sum_nll_loss
+    # sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. #  + cpc_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 

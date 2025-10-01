@@ -67,8 +67,13 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
+    # print(data['dict'].keys())
+    # print(data['train'].keys())
+    # print(len(data['train']['src']))
+    # print(data['train']['src'][0])
+    # raise Exception("Debug stop")
 
-    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/yeast']:
+    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider']:
         train_labels = generate_train_labels(data['train']['tgt'])
 
     train_data, valid_data, test_data, opt = process_data(data, opt)
@@ -99,7 +104,7 @@ def main(opt):
         feature_aggregate=opt.feature_aggregate,
         node2hyperedge_aggregate = opt.node2hyperedge_aggregate,
         node_update=opt.node_update,
-        onehot=opt.onehot,
+        feat_mode=opt.feat_mode,
         no_enc_pos_embedding=opt.no_enc_pos_embedding)
 
     print(model)

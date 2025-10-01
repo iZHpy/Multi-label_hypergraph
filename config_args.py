@@ -47,7 +47,7 @@ def get_args(parser):
                                                                  'soft_attention'], default='mean')
     parser.add_argument('-node_update', type=str, choices=['simple', 'gated'], default='simple')
     parser.add_argument('-br_threshold', type=float, default=0.5)
-    parser.add_argument('-onehot', action='store_true')
+    parser.add_argument('-feat_mode', type=str, choices=['onehot', 'tokens', 'float'], default='tokens')
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-multi_gpu', action='store_true')
     parser.add_argument('-viz', action='store_true')
@@ -66,14 +66,15 @@ def config_args(opt):
     # if 'reuters' in opt.dataset or 'bibtext' in opt.dataset:
 
     if opt.dataset in ['deepsea', 'gm12878', 'gm12878_unique2', 'gm12878_unique', 'tcell']:
-        opt.onehot = True
+        opt.feat_mode = 'onehot'
 
     if opt.d_v == -1:
         opt.d_v = int(opt.d_model / opt.n_head)
     if opt.d_k == -1:
         opt.d_k = int(opt.d_model / opt.n_head)
 
-    if opt.dataset in ['bibtext', 'delicious', 'bookmarks', 'sider']:
+    if opt.dataset in ['yeast']:
+        opt.feat_mode = 'float'
         opt.no_enc_pos_embedding = True
 
     if opt.d_inner_hid == -1:
