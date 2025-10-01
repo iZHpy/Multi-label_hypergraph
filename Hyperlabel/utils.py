@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import lamp.Constants as Constants
+import Hyperlabel.Constants as Constants
 from pdb import set_trace as stop 
 
 
@@ -59,38 +59,3 @@ def swap_0_1(tensor, on_zero, on_non_zero):
     res[tensor==0] = on_zero
     res[tensor!=0] = on_non_zero
     return res
-
-
-def kl_align_samples_as_gauss(z1, z2, tau=1.0, reduction='mean'):
-    mse = F.mse_loss(z1, z2, reduction='none').sum(dim=-1)  
-    kl_sym_per_sample = (1.0 / (tau**2)) * mse       
-    if reduction == 'none':
-        return kl_sym_per_sample
-    return kl_sym_per_sample.mean() if reduction == 'mean' else kl_sym_per_sample.sum()
-
-
-def kl_latents_norm(label_latent, feat_latent, eps=1e-12):
-    p = torch.relu(label_latent) + eps
-    p = p / p.sum(dim=-1, keepdim=True)
-    q = torch.relu(feat_latent) + eps
-    q = q / q.sum(dim=-1, keepdim=True)
-
-    logq = (q+eps).log()
-    kl = (p * (p.log() - logq)).sum(dim=-1).mean()
-    return kl
-
-def kl_latents_as_logits(label_latent, feat_latent, tau=1.0):
-    # tau: temperature
-    p = F.softmax(label_latent / tau, dim=-1)
-    log_q = F.log_softmax(feat_latent / tau, dim=-1)
-    kl = F.kl_div(log_q, p, reduction='batchmean')
-    return kl
-
-def js_divergence(label_latent, feat_latent, tau=1.0, eps=1e-12):
-    p = F.softmax(label_latent / tau, dim=-1)
-    q = F.softmax(feat_latent / tau, dim=-1)
-    m = 0.5 * (p + q)
-
-    kl_pm = (p * (p.log() - (m+eps).log())).sum(-1)
-    kl_qm = (q * (q.log() - (m+eps).log())).sum(-1)
-    return 0.5 * (kl_pm + kl_qm).mean()

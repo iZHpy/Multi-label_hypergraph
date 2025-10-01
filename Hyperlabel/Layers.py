@@ -1,10 +1,10 @@
 ''' Define the Layers '''
 import torch.nn as nn
-from lamp.SubLayers import MultiHeadAttention, PositionwiseFeedForward
+from Hyperlabel.SubLayers import MultiHeadAttention, PositionwiseFeedForward
 from pdb import set_trace as stop
 import math
 import torch
-from lamp import utils
+from Hyperlabel import utils
 
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, d_inner_hid, n_head, d_k, d_v, dropout=0.1):

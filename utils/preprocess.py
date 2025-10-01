@@ -1,7 +1,7 @@
 ''' Handling the data io '''
 import argparse
 import torch
-import lamp.Constants as Constants
+import Hyperlabel.Constants as Constants
 from pdb import set_trace as stop
 
 """

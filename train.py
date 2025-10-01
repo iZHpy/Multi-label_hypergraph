@@ -3,9 +3,9 @@ import utils.evals as evals
 import utils.utils as utils
 from utils.data_loader import process_data
 import torch, torch.nn as nn, torch.nn.functional as F
-import lamp.Constants as Constants
-from lamp.Models import LAMP, compute_loss
-from lamp.Translator import translate
+import Hyperlabel.Constants as Constants
+from Hyperlabel.Models import Hyperlabel, compute_loss
+from Hyperlabel.Translator import translate
 from config_args import config_args,get_args
 from pdb import set_trace as stop
 from tqdm import tqdm
@@ -22,22 +22,68 @@ def layer_grad_norms(model):
             }
     return report
 
-def logits_grad_stats(logits, targets, pos_weight=None):
-    logits = logits.detach().requires_grad_(True)
-    loss = F.binary_cross_entropy_with_logits(
-        logits, targets.float(), pos_weight=pos_weight, reduction="mean"
-    )
-    g, = torch.autograd.grad(loss, logits, retain_graph=False)
-    # 只看正样本/负样本上的梯度强度
-    g_pos = g[targets==1].abs().mean().item() if (targets==1).any() else 0.0
-    g_neg_easy = g[(targets==0) & (logits.detach()< -0.5)].abs().mean().item() if ((targets==0) & (logits.detach()< -2)).any() else 0.0
-    g_neg_hard = g[(targets==0) & (logits.detach()> -0.5)].abs().mean().item() if ((targets==0) & (logits.detach()> -0.5)).any() else 0.0
-    return dict(
-        g_mean=g.abs().mean().item(),
-        g_pos=g_pos, g_neg_easy=g_neg_easy, g_neg_hard=g_neg_hard,
-        prob_mean=torch.sigmoid(logits).mean().item()
-    )
+@torch.no_grad()
+def _safe_mean(x): 
+    return x.mean().item() if x.numel() > 0 else 0.0
 
+def logits_grad_stats(logits, targets, pos_weight=None, neg_easy_q=0.2, neg_hard_q=0.8):
+    logits = logits.detach().requires_grad_(True)
+    targets = targets.to(dtype=logits.dtype, device=logits.device)
+
+    loss = F.binary_cross_entropy_with_logits(
+        logits, targets, pos_weight=pos_weight, reduction="mean"
+    )
+    (g,) = torch.autograd.grad(loss, logits, retain_graph=False, create_graph=False)
+
+    pos_mask = targets == 1
+    neg_mask = targets == 0
+
+    # 用分位数划分负样本难度
+    neg_logits = logits.detach()[neg_mask]
+    if neg_logits.numel() > 0:
+        q_easy = torch.quantile(neg_logits, neg_easy_q)
+        q_hard = torch.quantile(neg_logits, neg_hard_q)
+        easy_neg_mask = neg_mask & (logits.detach() <= q_easy)
+        hard_neg_mask = neg_mask & (logits.detach() >= q_hard)
+        mid_neg_mask  = neg_mask & ~(easy_neg_mask | hard_neg_mask)
+    else:
+        easy_neg_mask = hard_neg_mask = mid_neg_mask = torch.zeros_like(neg_mask, dtype=torch.bool)
+
+    def sign_rate(mask, expect_positive: bool):
+        if not mask.any():
+            return 0.0
+        gi = g[mask]
+        return (gi > 0).float().mean().item() if expect_positive else (gi < 0).float().mean().item()
+
+    out = dict(
+        prob_mean=torch.sigmoid(logits.detach()).mean().item(),
+        g_mean=g.abs().mean().item(),
+        n_total=int(g.numel()),
+        n_pos=int(pos_mask.sum().item()),
+        n_neg=int(neg_mask.sum().item()),
+        n_neg_easy=int(easy_neg_mask.sum().item()),
+        n_neg_mid=int(mid_neg_mask.sum().item()),
+        n_neg_hard=int(hard_neg_mask.sum().item()),
+        g_pos=_safe_mean(g[pos_mask].abs()),
+        g_neg_easy=_safe_mean(g[easy_neg_mask].abs()),
+        g_neg_mid=_safe_mean(g[mid_neg_mask].abs()),
+        g_neg_hard=_safe_mean(g[hard_neg_mask].abs()),
+        pos_grad_negative_rate=sign_rate(pos_mask, expect_positive=False),  # y=1 期望负
+        neg_grad_positive_rate=sign_rate(neg_mask, expect_positive=True),   # y=0 期望正
+        all_negative_grad_rate=(g < 0).float().mean().item(),
+    )
+    return out
+
+def print_grad(model, logits=None, output=None, gold_binary=None):
+	rep = layer_grad_norms(model)
+	print('label_emb grad', rep.get("label_embedding.weight", {}))
+	print('label_emb b grad', rep.get("label_embedding.bias", {}))
+	print('W grad', rep.get("decoder.fd.2.weight", {}))
+	print('b grad', rep.get("decoder.fd.2.bias", {}))
+	print('Logits grad', logits_grad_stats(output['label_out'], gold_binary))
+	print('logits_0', logits[gold_binary==0])	
+	print('logits_1', logits[gold_binary==1])
+	print('++++++++++++++++++++++++++++++++++')
 
 def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,opt):
 	model.train()
@@ -70,18 +116,11 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 		total_kl_loss += kl_loss.item()
 		total_cpc_loss += cpc_loss.item()
 		loss.backward()
-		rep = layer_grad_norms(model)
-		print('label_emb grad', rep.get("label_embedding.weight", {}))
-		print('label_emb b grad', rep.get("label_embedding.bias", {}))
-		print('W grad', rep.get("decoder.fd.2.weight", {}))
-		print('b grad', rep.get("decoder.fd.2.bias", {}))
-		print('Logits grad', logits_grad_stats(output['label_out'], gold_binary))
-		print('logits_0', logits[gold_binary==0])	
-		print('logits_1', logits[gold_binary==1])
-		print('++++++++++++++++++++++++++++++++++')
+		
+		# print_grad(model, logits, output, gold_binary)
+  
 		optimizer.step()
 		tgt_out = gold_binary.data
-		# print(logits)
 		pred_out = torch.sigmoid(logits).data
   
 		## Collect batch predictions and targets ##

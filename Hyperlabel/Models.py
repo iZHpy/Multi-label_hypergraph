@@ -2,29 +2,30 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import lamp.Constants as Constants
-from lamp.Layers import EncoderLayer,DecoderLayer
-from lamp.SubLayers import ScaledDotProductAttention
-from lamp.SubLayers import PositionwiseFeedForward
-from lamp.SubLayers import XavierLinear
-from lamp.Encoders import MLPEncoder,GraphEncoder,RNNEncoder
-from lamp.Decoders import MLPDecoder,RNNDecoder,GraphDecoder
+import Hyperlabel.Constants as Constants
+from Hyperlabel.Layers import EncoderLayer,DecoderLayer
+from Hyperlabel.SubLayers import ScaledDotProductAttention
+from Hyperlabel.SubLayers import PositionwiseFeedForward
+from Hyperlabel.SubLayers import XavierLinear
+from Hyperlabel.Encoders import MLPEncoder,GraphEncoder,RNNEncoder
+from Hyperlabel.Decoders import MLPDecoder,RNNDecoder,GraphDecoder
+from Hyperlabel.Loss import AsymmetricLoss, FocalLoss, kl_align_samples_as_gauss, kl_latents_norm, kl_latents_as_logits, js_divergence
 from pdb import set_trace as stop 
-from lamp import utils
+from Hyperlabel import utils
 import copy
 from hyper.hypergraph import WeightedHypergraph
 from hyper.models import WeightedHypergraphModel
 from hyper.decoder import SimpleDecoder, ComplexDecoder, LatentDecoder
- 
 
-class LAMP(nn.Module):
+
+class Hyperlabel(nn.Module):
     def __init__(
             self, n_src_vocab, n_tgt_vocab, n_max_seq_e, train_labels, n_layers_sample_enc=6,
             n_layers_label_enc=6,n_head=8,d_word_vec=512, d_model=512, d_emb=512, d_inner_hid=1024, d_latent=64,
             d_k=64, d_v=64,sample_enc_dropout=0.1, label_enc_dropout=0.1,decoder_type='simple',enc_transform='special_token',
             special_token_init='default', feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple',feat_mode='tokens',no_enc_pos_embedding=False):
 
-        super(LAMP, self).__init__()
+        super(Hyperlabel, self).__init__()
         self.feat_mode = feat_mode
         self.n_src_vocab = n_src_vocab
 
@@ -54,8 +55,18 @@ class LAMP(nn.Module):
         
         ############# Decoder ###########
         self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
+        
+        self.bias = self.generate_bias(train_labels, n_tgt_vocab)
 
-
+    def generate_bias(self, train_labels, n_tgt_vocab):
+        label_freq = np.zeros(n_tgt_vocab)
+        for labels in train_labels:
+            for l in labels:
+                label_freq[l] += 1
+        label_freq = (label_freq / label_freq.sum())
+        bias = torch.log(torch.tensor(label_freq).clamp_(1e-4, 1-1e-4) / (1 - torch.tensor(label_freq)))
+        return bias
+    
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
         freezed_param_ids = set()
@@ -79,7 +90,7 @@ class LAMP(nn.Module):
         all_labels = torch.eye(n_label).to(feat_latent.device)
         h0 = self.dropout(F.relu(self.label_embedding(all_labels)))
         label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=feat_latent, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
-        label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
+        label_latent = torch.matmul(binary_tgt, label_space) / torch.sqrt(binary_tgt.sum(1, keepdim=True))
         label_emb = self.decoder(label_latent)
         label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
         return label_out
@@ -97,8 +108,8 @@ class LAMP(nn.Module):
         label_emb = fe_out['label_emb']
         # decode
         embs = self.label_embedding.weight
-        label_out = torch.matmul(label_emb, embs)
-        feat_out = torch.matmul(feat_emb, embs)
+        label_out = cosine_logits(label_emb, embs, tau=0.1, bias=self.bias.to(label_emb.device))
+        feat_out = cosine_logits(feat_emb, embs, tau=0.1, bias=self.bias.to(feat_emb.device))
         
         output = fe_out
         output.update(fx_out)
@@ -107,7 +118,14 @@ class LAMP(nn.Module):
         output['feat_out'] = feat_out
 
         return output
-    
+
+def cosine_logits(x_emb, y_emb, tau=1.0, bias=None):
+    x_norm = F.normalize(x_emb, p=2, dim=-1)
+    y_norm = F.normalize(y_emb, p=2, dim=-1)
+    logits = torch.matmul(x_norm, y_norm) / tau
+    if bias is not None:
+        logits = logits + bias
+    return logits
     
 def compute_loss(input_label, output, args=None):
     label_out, label_space, label_emb, label_latent = \
@@ -118,7 +136,7 @@ def compute_loss(input_label, output, args=None):
 
     # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
     
-    kl_loss = utils.kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
+    kl_loss = kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
 
     def supconloss(label_emb, feat_emb, embs, temp=1.0):
         features = torch.cat((label_emb, feat_emb))
@@ -141,11 +159,10 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = F.binary_cross_entropy_with_logits(label_out, input_label, reduction='mean')
-    nll_loss_x = F.binary_cross_entropy_with_logits(feat_out, input_label, reduction='mean')
+    nll_loss = AsymmetricLoss()(label_out, input_label, reduction='mean')
+    nll_loss_x = AsymmetricLoss()(feat_out, input_label, reduction='mean')
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss
-    # sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. #  + cpc_loss
+    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 

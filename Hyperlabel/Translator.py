@@ -3,10 +3,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from lamp.Models import LAMP
-from lamp.Beam import Beam
+from Hyperlabel.Models import Hyperlabel
+from Hyperlabel.Beam import Beam
 from pdb import set_trace as stop
-import lamp.Constants as Constants
+import Hyperlabel.Constants as Constants
 import numpy 
 
 def get_attn_padding_mask(seq_q, seq_k, unsqueeze=True):

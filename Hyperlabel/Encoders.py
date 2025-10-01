@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import lamp.Constants as Constants
-from lamp.Layers import EncoderLayer,DecoderLayer
-from lamp.SubLayers import ScaledDotProductAttention
-from lamp.SubLayers import PositionwiseFeedForward
-from lamp.SubLayers import XavierLinear
+import Hyperlabel.Constants as Constants
+from Hyperlabel.Layers import EncoderLayer,DecoderLayer
+from Hyperlabel.SubLayers import ScaledDotProductAttention
+from Hyperlabel.SubLayers import PositionwiseFeedForward
+from Hyperlabel.SubLayers import XavierLinear
 from pdb import set_trace as stop 
-from lamp import utils
+from Hyperlabel import utils
 import copy
 
 

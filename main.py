@@ -3,9 +3,9 @@ import utils.evals as evals
 import utils.utils as utils
 from utils.data_loader import process_data
 import torch, torch.nn as nn, torch.nn.functional as F
-import lamp.Constants as Constants
-from lamp.Models import LAMP
-from lamp.Translator import translate
+import Hyperlabel.Constants as Constants
+from Hyperlabel.Models import Hyperlabel
+from Hyperlabel.Translator import translate
 from config_args import config_args, get_args
 from pdb import set_trace as stop
 from tqdm import tqdm
@@ -81,7 +81,7 @@ def main(opt):
     print(opt)
 
     # ========= Preparing Model =========#
-    model = LAMP(
+    model = Hyperlabel(
         opt.src_vocab_size,
         opt.tgt_vocab_size,
         opt.max_token_seq_len_e,

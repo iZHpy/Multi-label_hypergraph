@@ -7,7 +7,7 @@
 
 import torch
 import numpy as np
-import lamp.Constants as Constants
+import Hyperlabel.Constants as Constants
 from pdb import set_trace as stop
 
 class Beam(object):
