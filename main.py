@@ -67,7 +67,8 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious']:
+
+    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/yeast']:
         train_labels = generate_train_labels(data['train']['tgt'])
 
     train_data, valid_data, test_data, opt = process_data(data, opt)

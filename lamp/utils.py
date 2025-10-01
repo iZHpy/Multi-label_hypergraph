@@ -67,3 +67,30 @@ def kl_align_samples_as_gauss(z1, z2, tau=1.0, reduction='mean'):
     if reduction == 'none':
         return kl_sym_per_sample
     return kl_sym_per_sample.mean() if reduction == 'mean' else kl_sym_per_sample.sum()
+
+
+def kl_latents_norm(label_latent, feat_latent, eps=1e-12):
+    p = torch.relu(label_latent) + eps
+    p = p / p.sum(dim=-1, keepdim=True)
+    q = torch.relu(feat_latent) + eps
+    q = q / q.sum(dim=-1, keepdim=True)
+
+    logq = (q+eps).log()
+    kl = (p * (p.log() - logq)).sum(dim=-1).mean()
+    return kl
+
+def kl_latents_as_logits(label_latent, feat_latent, tau=1.0):
+    # tau: temperature
+    p = F.softmax(label_latent / tau, dim=-1)
+    log_q = F.log_softmax(feat_latent / tau, dim=-1)
+    kl = F.kl_div(log_q, p, reduction='batchmean')
+    return kl
+
+def js_divergence(label_latent, feat_latent, tau=1.0, eps=1e-12):
+    p = F.softmax(label_latent / tau, dim=-1)
+    q = F.softmax(feat_latent / tau, dim=-1)
+    m = 0.5 * (p + q)
+
+    kl_pm = (p * (p.log() - (m+eps).log())).sum(-1)
+    kl_qm = (q * (q.log() - (m+eps).log())).sum(-1)
+    return 0.5 * (kl_pm + kl_qm).mean()

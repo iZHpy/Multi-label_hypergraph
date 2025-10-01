@@ -117,20 +117,8 @@ def compute_loss(input_label, output, args=None):
     embs = output['embs']
 
     # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
-    kl_loss = torch.tensor(0.).to(label_out.device)
-
-    def compute_BCE_and_RL_loss(E):
-        #compute negative log likelihood (BCE loss) for each sample point
-        sample_nll = -(
-            torch.log(E) * input_label + torch.log(1 - E) * (1 - input_label)
-        )
-        logprob = -torch.sum(sample_nll, dim=-1)
     
-        #the following computation is designed to avoid the float overflow (log_sum_exp trick)
-        maxlogprob = torch.max(logprob)
-        Eprob = torch.mean(torch.exp(logprob - maxlogprob), axis=0)
-        nll_loss = torch.mean(-torch.log(Eprob) - maxlogprob)
-        return nll_loss
+    kl_loss = utils.kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
 
     def supconloss(label_emb, feat_emb, embs, temp=1.0):
         features = torch.cat((label_emb, feat_emb))
