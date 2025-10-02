@@ -15,7 +15,7 @@ from Hyperlabel import utils
 import copy
 from hyper.hypergraph import WeightedHypergraph
 from hyper.models import WeightedHypergraphModel
-from hyper.decoder import SimpleDecoder, ComplexDecoder, LatentDecoder
+from hyper.decoder import SimpleDecoder, ComplexDecoder, LatentDecoder, AttentionDecoder
 
 
 class Hyperlabel(nn.Module):
@@ -47,18 +47,18 @@ class Hyperlabel(nn.Module):
                 special_token_init=special_token_init)
 
         ############# Label Encoder ###########
-        self.label_embedding = nn.Linear(n_tgt_vocab, d_model)
+        self.label_embedding = nn.Embedding(n_tgt_vocab, d_model)
         self.dropout = nn.Dropout(label_enc_dropout)
         
         self.label_encoder = WeightedHypergraphModel(num_labels=n_tgt_vocab, feature_dim=d_model, d_latent=d_latent, dropout_rate=label_enc_dropout ,
             num_layers=n_layers_label_enc, feature_aggregate=feature_aggregate, node2hyperedge_aggregate=node2hyperedge_aggregate, node_update=node_update,num_heads=n_head)
         
         ############# Decoder ###########
-        self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
-        
-        self.bias_x = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))  # 可学习
-        self.bias_e = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))
-        self.log_tau = nn.Parameter(torch.log(torch.tensor(0.1)))
+        self.decoder = AttentionDecoder(d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_model)
+
+        # self.bias_x = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))  # learnable bias
+        # self.bias_e = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))
+        # self.log_tau = nn.Parameter(torch.log(torch.tensor(0.1)))
         
     def generate_bias(self, train_labels, n_tgt_vocab, n_samples=None):
         # train_labels: list of lists (positives per sample)
@@ -87,18 +87,14 @@ class Hyperlabel(nn.Module):
 
     def feat_forward(self, src_seq, adj, src_pos):
         feat_latent = self.sample_encoder(src_seq, adj, src_pos).squeeze(1)
-        feat_emb = self.decoder(feat_latent)
-        feat_out = {'feat_latent': feat_latent, 'feat_emb': feat_emb}
+        feat_out = {'feat_latent': feat_latent}
         return feat_out
 
     def label_forward(self, binary_tgt, feat_latent, start_index, end_index):
-        n_label = self.hypergraph.num_labels
-        all_labels = torch.eye(n_label).to(feat_latent.device)
-        h0 = self.dropout(F.relu(self.label_embedding(all_labels)))
+        h0 = self.dropout(F.relu(self.label_embedding.weight))  # (num_labels, d_model)
         label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=feat_latent, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
-        label_latent = torch.matmul(binary_tgt, label_space) / torch.sqrt(binary_tgt.sum(1, keepdim=True))
-        label_emb = self.decoder(label_latent)
-        label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
+        label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
+        label_out = {'label_latent': label_latent, 'label_space': label_space}
         return label_out
 
     def forward(self, src, adj, binary_tgt, start_index, end_index):
@@ -107,23 +103,26 @@ class Hyperlabel(nn.Module):
         # sample_encode
         fx_out = self.feat_forward(src_seq, adj, src_pos)
         feat_latent = fx_out['feat_latent']
-        feat_emb = fx_out['feat_emb']
          
         # label_encode
         fe_out = self.label_forward(binary_tgt, feat_latent, start_index, end_index)
-        label_emb = fe_out['label_emb']
+        label_latent = fe_out['label_latent']
         # decode
+        label_space = fe_out['label_space']
         embs = self.label_embedding.weight
-        label_out = cosine_logits(label_emb, embs, log_tau=self.log_tau, bias=self.bias_e.to(label_emb.device))
-        feat_out = cosine_logits(feat_emb, embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
+        
+        logits_x = self.decoder(feat_latent, embs)
+        logits_e = self.decoder(label_latent, embs)
+        # label_out = cosine_logits(label_emb, embs, log_tau=self.log_tau, bias=self.bias_e.to(label_emb.device))
+        # feat_out = cosine_logits(feat_emb, embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
         # label_out = torch.matmul(label_emb, embs)
         # feat_out = torch.matmul(feat_emb, embs)
         
         output = fe_out
         output.update(fx_out)
         output['embs'] = embs
-        output['label_out'] = label_out
-        output['feat_out'] = feat_out
+        output['logits_e'] = logits_e
+        output['logits_x'] = logits_x
 
         return output
 
@@ -137,26 +136,23 @@ def cosine_logits(x_emb, y_emb, log_tau=0, bias=None):
     return logits
     
 def compute_loss(input_label, output, args=None):
-    label_out, label_space, label_emb, label_latent = \
-        output['label_out'], output['label_space'], output['label_emb'], output['label_latent']
-    feat_out, feat_emb, feat_latent = \
-        output['feat_out'], output['feat_emb'], output['feat_latent']
-    embs = output['embs']
+    logits_e, label_space,  label_latent = \
+        output['logits_e'], output['label_space'],  output['label_latent']
+    logits_x, feat_latent = \
+        output['logits_x'], output['feat_latent']
 
     # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
     
     kl_loss = kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
 
-    def supconloss(label_emb, feat_emb, embs, temp=1.0):
-        features = torch.cat((label_emb, feat_emb))
+    def supconloss(logits_e, logits_x):
+    
         labels = torch.cat((input_label, input_label)).float()
         n_label = labels.shape[1]
         emb_labels = torch.eye(n_label).to(labels.device)
         mask = torch.matmul(labels, emb_labels)
 
-        anchor_dot_contrast = torch.div(
-            torch.matmul(features, embs),
-            temp)
+        anchor_dot_contrast = torch.cat([logits_e, logits_x], dim=0)
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
 
@@ -168,10 +164,10 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = AsymmetricLoss()(label_out, input_label, reduction='mean')
-    nll_loss_x = AsymmetricLoss()(feat_out, input_label, reduction='mean')
+    nll_loss = nn.BCEWithLogitsLoss()(logits_e, input_label)
+    nll_loss_x = nn.BCEWithLogitsLoss()(logits_x, input_label)
     sum_nll_loss = nll_loss + nll_loss_x
-    cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss + kl_loss * 0.2
-    return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
+    cpc_loss = supconloss(logits_e, logits_x)
+    sum_loss = sum_nll_loss + kl_loss + cpc_loss
+    return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

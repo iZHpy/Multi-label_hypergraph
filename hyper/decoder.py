@@ -19,7 +19,7 @@ class ComplexDecoder(nn.Module):
         self.value_proj = nn.Linear(feature_dim, hidden_dim)
 
         # Label correlation learning
-        self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
+        # self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
 
         # Final prediction layers
         self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
@@ -46,10 +46,10 @@ class ComplexDecoder(nn.Module):
         logits = self.fc2(hidden).squeeze(-1)  # [batch_size, num_labels]
 
         # Apply label correlation
-        corr_logits = torch.matmul(logits, self.label_correlation)
-        final_logits = logits + corr_logits
+        # corr_logits = torch.matmul(logits, self.label_correlation)
+        # final_logits = logits + corr_logits
 
-        return final_logits
+        return logits
 
 
 
@@ -99,6 +99,49 @@ class LatentDecoder(nn.Module):
         d = F.normalize(d, dim=1)
 
         return d
+    
+    
+class AttentionDecoder(nn.Module):
+    def __init__(self, d_latent, num_labels, hidden_dim=512):
+        super(AttentionDecoder, self).__init__()
+        self.d_la = d_latent
+        self.num_labels = num_labels
 
+        # Attention mechanism
+        self.query_proj = nn.Linear(d_latent, hidden_dim)
+        self.key_proj = nn.Linear(d_latent, hidden_dim)
+        self.value_proj = nn.Linear(d_latent, hidden_dim)
 
+        # Label correlation learning
+        self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
 
+        # Final prediction layers
+        self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, num_labels)
+
+    def forward(self, samples, embs):
+        batch_size = samples.shape[0]
+        samples = samples.unsqueeze(1)  # [batch_size, 1, d_latent]
+
+        # Attention mechanism
+        query = self.query_proj(samples)  # [batch_size, 1, hidden_dim]
+        key = self.key_proj(embs).unsqueeze(0)  # [1, num_labels, hidden_dim]
+        value = self.value_proj(embs).unsqueeze(0)  # [1, num_labels, hidden_dim]
+
+        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / (self.d_la ** 0.5)
+        attention_probs = F.softmax(attention_scores, dim=-1)
+        context_vector = torch.matmul(attention_probs, value)  # [batch_size, 1, hidden_dim]
+
+        # Combine sample feature with context vector
+        combined_feature = torch.cat([samples, context_vector],
+                                     dim=-1)  # [batch_size, 1, hidden_dim*2]
+
+        # Final prediction
+        hidden = F.relu(self.fc1(combined_feature))
+        logits = self.fc2(hidden).squeeze(1)  # [batch_size, num_labels]
+
+        # Apply label correlation
+        corr_logits = torch.matmul(logits, self.label_correlation)
+        final_logits = logits + corr_logits
+
+        return final_logits

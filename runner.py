@@ -77,25 +77,25 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		valid_losses += [valid_loss]
   
   
-		metric = 'ebF1' # choose metric for saving best model
-		if  valid_metrics[metric] >= best_valid_metrics[metric]:
-			best_valid_metrics = valid_metrics
+		# metric = 'ebF1' # choose metric for saving best model
+		# if  valid_metrics[metric] >= best_valid_metrics[metric]:
+		# 	best_valid_metrics = valid_metrics
 
-			################################## TEST ###################################
-			start = time.time()
-			all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
-			elapsed = ((time.time()-start)/60)
-			print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
-			test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
-			print('Total_Loss : '+str(test_total_loss/len(test_data._src_insts)))
-			print('NLL_Loss : '+str(test_nll_loss/len(test_data._src_insts)))
-			print('NLL_X_Loss : '+str(test_nll_loss_x/len(test_data._src_insts)))
-			print('KL_Loss : '+str(test_kl_loss/len(test_data._src_insts)))
-			print('CPC_Loss : '+str(test_cpc_loss/len(test_data._src_insts)))
+		################################## TEST ###################################
+		start = time.time()
+		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
+		elapsed = ((time.time()-start)/60)
+		print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
+		test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
+		print('Total_Loss : '+str(test_total_loss/len(test_data._src_insts)))
+		print('NLL_Loss : '+str(test_nll_loss/len(test_data._src_insts)))
+		print('NLL_X_Loss : '+str(test_nll_loss_x/len(test_data._src_insts)))
+		print('KL_Loss : '+str(test_kl_loss/len(test_data._src_insts)))
+		print('CPC_Loss : '+str(test_cpc_loss/len(test_data._src_insts)))
 
-			# torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
-			# torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))
-			test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
+		# torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
+		# torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))
+		test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		
 		best_valid,best_test = logger.evaluate(train_metrics,valid_metrics,test_metrics,epoch_i,opt.total_num_parameters)
   
