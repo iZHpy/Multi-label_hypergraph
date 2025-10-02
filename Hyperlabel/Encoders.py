@@ -30,7 +30,7 @@ class MLPEncoder(nn.Module):
 class GraphEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=64, d_model=512, d_latent=64, d_inner_hid=1024, feat_mode='tokens', enc_transform='special_token',
+            d_word_vec=512, d_model=512, d_latent=64, d_inner_hid=1024, feat_mode='tokens', enc_transform='special_token',
             special_token_init='normal', dropout=0.1, no_enc_pos_embedding=False):
 
         super(GraphEncoder, self).__init__()

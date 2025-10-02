@@ -134,7 +134,6 @@ class WeightedHypergraphModel(nn.Module):
     def forward(self, hypergraph, batch_features, node_features, start_index, end_index, device='cpu'):
         batch_size = end_index - start_index
 
-        # node_features = self.label_embedding(hypergraph.node_index.to(device))
         edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)
         # hyperedge_features = defaultdict(list)
         # for i, sample_id in enumerate(range(start_index, end_index)):

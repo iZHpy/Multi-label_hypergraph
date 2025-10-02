@@ -40,12 +40,9 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 	for epoch_i in range(opt.epoch):
 		print('================= Epoch', epoch_i+1, '=================')
-		if scheduler and opt.lr_decay > 0: scheduler.step()
-
-
 		################################## TRAIN ###################################
 		start = time.time()
-		all_predictions,all_targets,train_loss=train_epoch(model,train_data,crit,optimizer,adv_optimizer,(epoch_i+1),data_dict,opt)
+		all_predictions,all_targets,train_loss=train_epoch(model,train_data,crit,optimizer,scheduler,(epoch_i+1),data_dict,opt)
 		elapsed = ((time.time()-start)/60)
 		print('\n(Training) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
 		train_total_loss, train_nll_loss, train_nll_loss_x, train_kl_loss, train_cpc_loss = train_loss

@@ -112,9 +112,13 @@ def main(opt):
 
     opt.total_num_parameters = int(utils.count_parameters(model))
 
-    optimizer = torch.optim.Adam(model.get_trainable_parameters(), betas=(0.9, 0.98), lr=opt.lr)
-    scheduler = torch.torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay,
-                                                      last_epoch=-1)
+    optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=opt.lr, betas=(0.9, 0.98), weight_decay=0.01)
+    
+    totol_steps = len(train_data) * opt.epoch
+    warm_steps = int(totol_steps * 0.05)
+    scheduler = utils.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=warm_steps, num_training_steps=totol_steps)
+    # scheduler = torch.torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay,
+    #                                                   last_epoch=-1)
 
     adv_optimizer = None
 

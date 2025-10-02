@@ -40,6 +40,16 @@ def get_criterion(opt):
 
     return nn.BCELoss(size_average=False)#weight=ranking_values)
 
+def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, min_lr=0.0):
+    import math
+    def lr_lambda(current_step):
+        if current_step < num_warmup_steps:
+            return float(current_step) / float(max(1, num_warmup_steps))
+        progress = float(current_step - num_warmup_steps) / float(max(1, num_training_steps - num_warmup_steps))
+        cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
+        return max(min_lr, cosine_decay)
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 

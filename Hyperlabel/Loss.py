@@ -36,10 +36,10 @@ class FocalLoss(torch.nn.Module):
         self.gamma = gamma
         self.eps = eps
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets, reduction='mean'):
         p = torch.sigmoid(logits)
         # BCE with logits components
-        bce = F.binary_cross_entropy_with_logits(logits, targets.float(), reduction='none')
+        bce = F.binary_cross_entropy_with_logits(logits, targets.float(), reduction="none")
         # convert BCE to p_t form: p_t = p for y=1, = 1-p for y=0
         p_t = p * targets + (1 - p) * (1 - targets)
         focal = (1 - p_t).pow(self.gamma) * bce
@@ -53,10 +53,13 @@ class FocalLoss(torch.nn.Module):
                 alpha = alpha.view(1, -1)  # (1,C)
             alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
             focal = alpha_t * focal
-        return focal.mean()
-    
-    
-    
+        if reduction == 'mean':
+            return focal.mean()
+        elif reduction == 'sum':
+            return focal.sum()
+        return focal
+
+
 def kl_align_samples_as_gauss(z1, z2, tau=1.0, reduction='mean'):
     mse = F.mse_loss(z1, z2, reduction='none').sum(dim=-1)  
     kl_sym_per_sample = (1.0 / (tau**2)) * mse       

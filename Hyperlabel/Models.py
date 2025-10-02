@@ -101,7 +101,7 @@ class Hyperlabel(nn.Module):
         label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
         return label_out
 
-    def forward(self, src, adj, binary_tgt, start_index, end_index, fix_emb=False):
+    def forward(self, src, adj, binary_tgt, start_index, end_index):
         src_seq, src_pos = src
 
         # sample_encode
@@ -115,7 +115,7 @@ class Hyperlabel(nn.Module):
         # decode
         embs = self.label_embedding.weight
         label_out = cosine_logits(label_emb, embs, log_tau=self.log_tau, bias=self.bias_e.to(label_emb.device))
-        feat_out = cosine_logits(feat_emb, embs.detach() if fix_emb else embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
+        feat_out = cosine_logits(feat_emb, embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
         # label_out = torch.matmul(label_emb, embs)
         # feat_out = torch.matmul(feat_emb, embs)
         
@@ -172,6 +172,6 @@ def compute_loss(input_label, output, args=None):
     nll_loss_x = AsymmetricLoss()(feat_out, input_label, reduction='mean')
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss
+    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss + kl_loss * 0.2
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 

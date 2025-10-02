@@ -96,7 +96,7 @@ def print_decoder_grad(decoder,nll_loss,nll_loss_x):
     cosine = num / den
     print("grad cosine between BCE_x and BCE_e on decoder:", cosine)
 
-def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,opt):
+def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,data_dict,opt):
     model.train()
 
     out_len = opt.tgt_vocab_size
@@ -115,7 +115,7 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
 
         gold_binary = utils.get_gold_binary(gold.data.cpu(),opt.tgt_vocab_size).to(opt.device)
         optimizer.zero_grad()
-        output = model(src,adj,gold_binary,start_idx, end_idx, fix_emb=True if epoch<opt.fix_emb_epochs else False)
+        output = model(src,adj,gold_binary,start_idx, end_idx)
         sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, logits = \
                     compute_loss(gold_binary, output, opt)
         loss += sum_loss
@@ -130,6 +130,7 @@ def train_epoch(model,train_data, crit, optimizer,adv_optimizer,epoch,data_dict,
         
         loss.backward()
         optimizer.step()
+        if scheduler: scheduler.step()
         tgt_out = gold_binary.data
         pred_out = torch.sigmoid(logits).data
 
