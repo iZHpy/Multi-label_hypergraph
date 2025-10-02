@@ -56,15 +56,21 @@ class Hyperlabel(nn.Module):
         ############# Decoder ###########
         self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
         
-        self.bias = self.generate_bias(train_labels, n_tgt_vocab)
-
-    def generate_bias(self, train_labels, n_tgt_vocab):
-        label_freq = np.zeros(n_tgt_vocab)
+        self.bias_x = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))  # 可学习
+        self.bias_e = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))
+        self.log_tau = nn.Parameter(torch.log(torch.tensor(0.1)))
+        
+    def generate_bias(self, train_labels, n_tgt_vocab, n_samples=None):
+        # train_labels: list of lists (positives per sample)
+        label_pos = np.zeros(n_tgt_vocab, dtype=np.int64)
         for labels in train_labels:
             for l in labels:
-                label_freq[l] += 1
-        label_freq = (label_freq / label_freq.sum())
-        bias = torch.log(torch.tensor(label_freq).clamp_(1e-4, 1-1e-4) / (1 - torch.tensor(label_freq)))
+                label_pos[l] += 1
+        if n_samples is None:
+            n_samples = len(train_labels)
+        pi = label_pos / max(n_samples, 1)   # 每类正例先验
+        pi = np.clip(pi, 1e-4, 1 - 1e-4)
+        bias = torch.log(torch.tensor(pi) / (1 - torch.tensor(pi)))
         return bias
     
     def get_trainable_parameters(self):
@@ -95,7 +101,7 @@ class Hyperlabel(nn.Module):
         label_out = {'label_latent': label_latent, 'label_emb': label_emb, 'label_space': label_space}
         return label_out
 
-    def forward(self, src, adj, binary_tgt, start_index, end_index):
+    def forward(self, src, adj, binary_tgt, start_index, end_index, fix_emb=False):
         src_seq, src_pos = src
 
         # sample_encode
@@ -108,8 +114,10 @@ class Hyperlabel(nn.Module):
         label_emb = fe_out['label_emb']
         # decode
         embs = self.label_embedding.weight
-        label_out = cosine_logits(label_emb, embs, tau=0.1, bias=self.bias.to(label_emb.device))
-        feat_out = cosine_logits(feat_emb, embs, tau=0.1, bias=self.bias.to(feat_emb.device))
+        label_out = cosine_logits(label_emb, embs, log_tau=self.log_tau, bias=self.bias_e.to(label_emb.device))
+        feat_out = cosine_logits(feat_emb, embs.detach() if fix_emb else embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
+        # label_out = torch.matmul(label_emb, embs)
+        # feat_out = torch.matmul(feat_emb, embs)
         
         output = fe_out
         output.update(fx_out)
@@ -119,10 +127,11 @@ class Hyperlabel(nn.Module):
 
         return output
 
-def cosine_logits(x_emb, y_emb, tau=1.0, bias=None):
+def cosine_logits(x_emb, y_emb, log_tau=0, bias=None):
     x_norm = F.normalize(x_emb, p=2, dim=-1)
-    y_norm = F.normalize(y_emb, p=2, dim=-1)
-    logits = torch.matmul(x_norm, y_norm) / tau
+    y_norm = F.normalize(y_emb, p=2, dim=0)
+    scale = 1.0 / (torch.exp(log_tau) if log_tau is not None else 1.0)
+    logits = torch.matmul(x_norm, y_norm) * scale
     if bias is not None:
         logits = logits + bias
     return logits

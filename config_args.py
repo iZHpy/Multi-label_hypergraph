@@ -56,6 +56,7 @@ def get_args(parser):
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-load_pretrained', action='store_true')
     parser.add_argument('-nll_coeff', type=float, default=1.0)
+    parser.add_argument('-fix_emb_epochs', type=int, default=30)
     opt = parser.parse_args()
     return opt
 
