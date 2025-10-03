@@ -9,7 +9,7 @@ import utils
 from os import path
 
 def process_onehot(data, opt, type='train'):
-    if opt.feat_mode == 'tokens':
+    if opt.feat_mode == 'tokens' or opt.feat_mode == 'onehot':
         data[type]['onehot'] = []
         for i, sample in enumerate(data[type]['src']):
             indices = torch.from_numpy(np.array(sample)).long()

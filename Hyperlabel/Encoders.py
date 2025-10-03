@@ -44,7 +44,8 @@ class GraphEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         if feat_mode == 'onehot':
-            self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
+            self.src_word_emb = nn.Embedding(n_src_vocab - 4, d_word_vec, padding_idx=Constants.PAD)
+            print(self.src_word_emb.weight.data.size())
             self.src_word_emb.weight.data.fill_(0)
             self.src_word_emb.weight.data[1:, 1:] = torch.eye(self.src_word_emb.weight.data[1:].size(0))
             self.conv1 = nn.Conv1d(9, d_model, 16, stride=1, padding=8, dilation=1, groups=1, bias=True)
@@ -85,8 +86,10 @@ class GraphEncoder(nn.Module):
         
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
-
+        print(src_seq.size())
         enc_input = self.src_word_emb(src_seq)
+        print(enc_input.size())
+        raise Exception("Debug stop")
         if self.feat_mode == 'onehot':
             enc_input = F.relu(self.dropout(self.conv1(enc_input.transpose(1, 2))))[:, :, 0:-1]
             enc_input = F.max_pool1d(enc_input, 2, 2)
@@ -133,30 +136,31 @@ class GraphEncoder(nn.Module):
 
         return enc_output
 
-class RNNEncoder(nn.Module):
-    def __init__(
-            self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=64, d_model=512, d_inner_hid=1024, feat_mode='tokens', dropout=0.1):
-
-        super(RNNEncoder, self).__init__()
-
-        self.feat_mode = feat_mode
+class BagOfTokensEncoder(nn.Module):
+    """
+    input: multi-hot vector [B, V], V is vocab size
+    output: z [B, 1, d_latent]
+    """
+    def __init__(self, d_in, d_model=512, d_hidden=512, d_latent=64, n_layers=3, dropout=0.1):
+        super().__init__()
         
-        if feat_mode == 'onehot':
-            d_word_vec = 9
-            self.src_word_emb = nn.Embedding(n_src_vocab, n_src_vocab, padding_idx=Constants.PAD)
-            self.src_word_emb.weight.data.fill_(0)
-            self.src_word_emb.weight.data[1:,1:] = torch.eye(self.src_word_emb.weight.data[1:].size(0))
-            self.conv = nn.Conv1d(9, 512, 16, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        else:
-            self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
+        self.emb = nn.linear(d_in, d_model, bias=False)
+        layers = []
+        in_dim = d_model
+        for _ in range(n_layers - 1):
+            layers.append(nn.Linear(in_dim, d_hidden))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(dropout))
+            in_dim = d_hidden
+        layers.append(nn.Linear(in_dim, d_latent))
+        self.mlp = nn.Sequential(*layers)
+        self.ln = nn.LayerNorm(d_latent)
 
-        self.brnn = nn.GRU(d_word_vec,d_model,n_layers,batch_first=True,bidirectional=True,dropout=dropout)
-        self.U = nn.Linear(d_model*2,d_model)
+    def forward(self, multi_hot):
+        # multi_hot: [B, V] -> bag embedding = multi_hot @ E (E=[V,d_model])
+        bag = self.emb(multi_hot)  # [B, d_model]
 
-    def forward(self, src_seq,adj, src_pos, return_attns=False):
-        enc_input = self.src_word_emb(src_seq)
-        enc_output,_ = self.brnn(enc_input)
-        enc_output = self.U(enc_output)
-        
-        return enc_output,None
+        z = self.mlp(bag)  # [B, d_latent]
+        z = self.ln(z)
+        z = z.unsqueeze(1)  # [B, 1, d_latent]
+        return z
