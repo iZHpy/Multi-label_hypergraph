@@ -84,20 +84,20 @@ class SimpleDecoder(nn.Module):
         return logits
     
 class LatentDecoder(nn.Module):
-    def __init__(self, latent_dim, emb_size):
+    def __init__(self, latent_dim, onehot_dim, emb_size):
         super(LatentDecoder, self).__init__()
 
         self.fd = nn.Sequential(
-            nn.Linear(latent_dim, 512),
+            nn.Linear(latent_dim + onehot_dim -4, 512),
             nn.ReLU(),
             nn.Linear(512, emb_size),
             nn.LeakyReLU()
         )
 
-    def forward(self, latent):
-        d = self.fd(latent)
+    def forward(self, latent, src_onehot):
+        x = torch.cat([latent, src_onehot], dim=1)
+        d = self.fd(x)
         d = F.normalize(d, dim=1)
-
         return d
 
 
