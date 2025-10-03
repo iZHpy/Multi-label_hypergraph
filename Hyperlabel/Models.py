@@ -55,23 +55,7 @@ class Hyperlabel(nn.Module):
         
         ############# Decoder ###########
         self.decoder = LatentDecoder(latent_dim=d_latent, emb_size=d_emb)
-        
-        self.bias_x = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))  # 可学习
-        self.bias_e = nn.Parameter(self.generate_bias(train_labels, n_tgt_vocab))
-        self.log_tau = nn.Parameter(torch.log(torch.tensor(0.1)))
-        
-    def generate_bias(self, train_labels, n_tgt_vocab, n_samples=None):
-        # train_labels: list of lists (positives per sample)
-        label_pos = np.zeros(n_tgt_vocab, dtype=np.int64)
-        for labels in train_labels:
-            for l in labels:
-                label_pos[l] += 1
-        if n_samples is None:
-            n_samples = len(train_labels)
-        pi = label_pos / max(n_samples, 1)   # 每类正例先验
-        pi = np.clip(pi, 1e-4, 1 - 1e-4)
-        bias = torch.log(torch.tensor(pi) / (1 - torch.tensor(pi)))
-        return bias
+
     
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
@@ -114,10 +98,8 @@ class Hyperlabel(nn.Module):
         label_emb = fe_out['label_emb']
         # decode
         embs = self.label_embedding.weight
-        label_out = cosine_logits(label_emb, embs, log_tau=self.log_tau, bias=self.bias_e.to(label_emb.device))
-        feat_out = cosine_logits(feat_emb, embs, log_tau=self.log_tau, bias=self.bias_x.to(feat_emb.device))
-        # label_out = torch.matmul(label_emb, embs)
-        # feat_out = torch.matmul(feat_emb, embs)
+        label_out = torch.matmul(label_emb, embs)
+        feat_out = torch.matmul(feat_emb, embs)
         
         output = fe_out
         output.update(fx_out)
@@ -126,15 +108,6 @@ class Hyperlabel(nn.Module):
         output['feat_out'] = feat_out
 
         return output
-
-def cosine_logits(x_emb, y_emb, log_tau=0, bias=None):
-    x_norm = F.normalize(x_emb, p=2, dim=-1)
-    y_norm = F.normalize(y_emb, p=2, dim=0)
-    scale = 1.0 / (torch.exp(log_tau) if log_tau is not None else 1.0)
-    logits = torch.matmul(x_norm, y_norm) * scale
-    if bias is not None:
-        logits = logits + bias
-    return logits
     
 def compute_loss(input_label, output, args=None):
     label_out, label_space, label_emb, label_latent = \
@@ -145,7 +118,8 @@ def compute_loss(input_label, output, args=None):
 
     # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
     
-    kl_loss = kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
+    # kl_loss = kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
+    kl_loss = torch.tensor(0.).to(input_label.device)
 
     def supconloss(label_emb, feat_emb, embs, temp=1.0):
         features = torch.cat((label_emb, feat_emb))
@@ -168,10 +142,10 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = AsymmetricLoss()(label_out, input_label, reduction='mean')
-    nll_loss_x = AsymmetricLoss()(feat_out, input_label, reduction='mean')
+    nll_loss = FocalLoss()(label_out, input_label, reduction='mean')
+    nll_loss_x = FocalLoss()(feat_out, input_label, reduction='mean')
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss + kl_loss * 0.2
+    sum_loss = sum_nll_loss * args.nll_coeff + cpc_loss + kl_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 
