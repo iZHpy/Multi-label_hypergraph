@@ -164,8 +164,8 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = nn.BCEWithLogitsLoss()(logits_e, input_label)
-    nll_loss_x = nn.BCEWithLogitsLoss()(logits_x, input_label)
+    nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean', pos_weight=None)
+    nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean', pos_weight=None)
     sum_nll_loss = nll_loss + nll_loss_x
     cpc_loss = supconloss(logits_e, logits_x)
     sum_loss = sum_nll_loss + kl_loss + cpc_loss

@@ -19,7 +19,7 @@ class ComplexDecoder(nn.Module):
         self.value_proj = nn.Linear(feature_dim, hidden_dim)
 
         # Label correlation learning
-        # self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
+        self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
 
         # Final prediction layers
         self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
@@ -46,10 +46,10 @@ class ComplexDecoder(nn.Module):
         logits = self.fc2(hidden).squeeze(-1)  # [batch_size, num_labels]
 
         # Apply label correlation
-        # corr_logits = torch.matmul(logits, self.label_correlation)
-        # final_logits = logits + corr_logits
+        corr_logits = torch.matmul(logits, self.label_correlation)
+        final_logits = logits + corr_logits
 
-        return logits
+        return final_logits
 
 
 
@@ -112,9 +112,6 @@ class AttentionDecoder(nn.Module):
         self.key_proj = nn.Linear(d_latent, hidden_dim)
         self.value_proj = nn.Linear(d_latent, hidden_dim)
 
-        # Label correlation learning
-        self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
-
         # Final prediction layers
         self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_labels)
@@ -140,8 +137,5 @@ class AttentionDecoder(nn.Module):
         hidden = F.relu(self.fc1(combined_feature))
         logits = self.fc2(hidden).squeeze(1)  # [batch_size, num_labels]
 
-        # Apply label correlation
-        corr_logits = torch.matmul(logits, self.label_correlation)
-        final_logits = logits + corr_logits
 
-        return final_logits
+        return logits
