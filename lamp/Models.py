@@ -155,8 +155,8 @@ def compute_loss(input_label, output, args=None):
 
     nll_loss = F.binary_cross_entropy_with_logits(label_out, input_label)
     nll_loss_x = F.binary_cross_entropy_with_logits(feat_out, input_label)
-    sum_nll_loss = nll_loss + nll_loss_x
+    sum_nll_loss = nll_loss + nll_loss_x * 6.
     cpc_loss = supconloss(label_emb, feat_emb, embs)
-    sum_loss = sum_nll_loss * args.nll_coeff + kl_loss * 1. + cpc_loss
+    sum_loss = sum_nll_loss * args.nll_coeff + kl_loss + cpc_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, label_out, feat_out
 
