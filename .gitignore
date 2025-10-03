@@ -1,6 +1,6 @@
 all_data/*
 private/*
-data/*
+data/
 results/*
 .idea/
 .ipynb_checkpoints
