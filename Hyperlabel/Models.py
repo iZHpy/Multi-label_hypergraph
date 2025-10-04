@@ -68,6 +68,8 @@ class Hyperlabel(nn.Module):
             num_layers=n_layers_label_enc, feature_aggregate=feature_aggregate, node2hyperedge_aggregate=node2hyperedge_aggregate, node_update=node_update,num_heads=n_head)
         
         ############# Decoder ###########
+        if self.feat_mode == 'tokens':
+            n_src_vocab = n_src_vocab - 4
         self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_model)
     
     def get_trainable_parameters(self):
@@ -97,10 +99,14 @@ class Hyperlabel(nn.Module):
 
     def forward(self, src, adj, binary_tgt, start_index, end_index):
         src_seq, src_pos, src_multi_hot = src
-        if self.feat_mode == 'multi-hot':
-            src_seq = src_multi_hot
+        
         # sample_encode
-        fx_out = self.feat_forward(src_seq, adj, src_pos)
+        if self.feat_mode == 'tokens' or self.feat_mode == 'vec':
+            fx_out = self.feat_forward(src_seq, adj, src_pos)
+        else:
+            fx_out = self.feat_forward(src_multi_hot, adj, src_pos)
+
+            
         feat_latent = fx_out['feat_latent']
          
         # label_encode
@@ -110,8 +116,12 @@ class Hyperlabel(nn.Module):
         label_space = fe_out['label_space']
         embs = self.label_embedding.weight
         
-        logits_x = self.decoder(feat_latent, src_seq, embs)
-        logits_e = self.decoder(label_latent, src_seq, embs)
+        if self.feat_mode == 'tokens' or self.feat_mode == 'multi-hot':
+            logits_x = self.decoder(feat_latent, src_multi_hot.float(), embs)
+            logits_e = self.decoder(label_latent, src_multi_hot.float(), embs)
+        else:
+            logits_x = self.decoder(feat_latent, src_seq, embs)
+            logits_e = self.decoder(label_latent, src_seq, embs)
 
 
         output = fe_out
@@ -158,6 +168,6 @@ def compute_loss(input_label, output, args=None):
     nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
     sum_nll_loss = nll_loss + nll_loss_x * 6.
     cpc_loss = supconloss(logits_e, logits_x)
-    sum_loss = sum_nll_loss +  kl_loss + cpc_loss + kl_loss * 0.1
+    sum_loss = sum_nll_loss +  kl_loss + cpc_loss + kl_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

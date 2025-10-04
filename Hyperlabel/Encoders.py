@@ -65,7 +65,6 @@ class GraphEncoder(nn.Module):
         
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
-        print(src_seq.size())
         enc_input = self.src_word_emb(src_seq)
         if hasattr(self, 'position_enc'):
             enc_input += self.position_enc(src_pos)
