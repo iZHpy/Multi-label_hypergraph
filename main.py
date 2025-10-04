@@ -98,7 +98,7 @@ def main(opt):
         n_head=opt.n_head,
         sample_enc_dropout=opt.sample_enc_dropout,
         label_enc_dropout = opt.label_enc_dropout,
-        decoder_type=opt.decoder_type,
+        encoder_type=opt.encoder_type,
         enc_transform=opt.enc_transform,
         special_token_init=opt.special_token_init,
         feature_aggregate=opt.feature_aggregate,

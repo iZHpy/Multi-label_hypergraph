@@ -36,7 +36,7 @@ def get_args(parser):
     parser.add_argument('-lr_decay', type=float, default=1)
     parser.add_argument('-sample_enc_dropout', type=float, default=0.1)
     parser.add_argument('-label_enc_dropout', type=float, default=0.1)
-    parser.add_argument('-decoder_type', type=str, choices=['simple', 'complex'], default='simple')
+    parser.add_argument('-encoder_type', type=str, choices=['MLP', 'DeepSets', 'SetTransformer'], default='MLP')
     parser.add_argument('-enc_transform', type=str, choices=['max', 'mean', 'special_token'], default='special_token')
     parser.add_argument('-special_token_init', type=str, choices=['random', 'xavier_uniform', 'xavier_normal',
                                                                   'kaiming_uniform', 'kaiming_normal', 'normal'],
@@ -47,7 +47,7 @@ def get_args(parser):
                                                                  'soft_attention'], default='mean')
     parser.add_argument('-node_update', type=str, choices=['simple', 'gated'], default='simple')
     parser.add_argument('-br_threshold', type=float, default=0.5)
-    parser.add_argument('-feat_mode', type=str, choices=['onehot', 'tokens', 'float'], default='tokens')
+    parser.add_argument('-feat_mode', type=str, choices=['multi-hot', 'tokens', 'vec'], default='tokens')
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-multi_gpu', action='store_true')
     parser.add_argument('-viz', action='store_true')
@@ -93,7 +93,7 @@ def config_args(opt):
 
     opt.model_name += '.n_update_' + opt.node_update
 
-    opt.model_name += '.dec_' + opt.decoder_type
+    opt.model_name += '.enc_' + opt.encoder_type
     opt.model_name += '.' + str(opt.d_model)
     opt.model_name += '.' + str(opt.d_inner_hid)
     opt.model_name += '.' + str(opt.d_k)

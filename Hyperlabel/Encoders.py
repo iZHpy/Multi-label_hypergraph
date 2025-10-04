@@ -12,20 +12,6 @@ from Hyperlabel import utils
 import copy
 
 
- 
-class MLPEncoder(nn.Module):
-    def __init__(
-            self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=64, d_model=512, d_inner_hid=1024, feat_mode='float', dropout=0.1):
-        super(MLPEncoder, self).__init__()
-        self.n_max_seq = n_max_seq
-        self.d_model = d_model
-        self.linear1 = nn.Linear(n_src_vocab,d_model)
-
-    def forward(self, src_seq, adj, src_pos):
-        enc_output = self.linear1(src_seq)
-        return enc_output.view(src_seq.size(0),1,-1)
-
 
 class GraphEncoder(nn.Module):
     def __init__(
@@ -43,17 +29,10 @@ class GraphEncoder(nn.Module):
         self.enc_transform = enc_transform
         self.dropout = nn.Dropout(dropout)
 
-        if feat_mode == 'onehot':
-            self.src_word_emb = nn.Embedding(n_src_vocab - 4, d_word_vec, padding_idx=Constants.PAD)
-            print(self.src_word_emb.weight.data.size())
-            self.src_word_emb.weight.data.fill_(0)
-            self.src_word_emb.weight.data[1:, 1:] = torch.eye(self.src_word_emb.weight.data[1:].size(0))
-            self.conv1 = nn.Conv1d(9, d_model, 16, stride=1, padding=8, dilation=1, groups=1, bias=True)
-            self.conv2 = nn.Conv1d(d_model, d_model, 16, stride=1, padding=8, dilation=1, groups=1, bias=True)
-        elif feat_mode == 'tokens':
+        if feat_mode == 'tokens':
             self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
         else:
-            raise ValueError("Use MLPEncoder for float features")
+            raise ValueError("Use MLPEncoder/DeepSets/SetTransformer for float features")
             
         if no_enc_pos_embedding is False:
             self.position_enc = nn.Embedding(n_position, d_word_vec, padding_idx=Constants.PAD)
@@ -88,15 +67,7 @@ class GraphEncoder(nn.Module):
         batch_size = src_seq.size(0)
         print(src_seq.size())
         enc_input = self.src_word_emb(src_seq)
-        print(enc_input.size())
-        raise Exception("Debug stop")
-        if self.feat_mode == 'onehot':
-            enc_input = F.relu(self.dropout(self.conv1(enc_input.transpose(1, 2))))[:, :, 0:-1]
-            enc_input = F.max_pool1d(enc_input, 2, 2)
-            enc_input = F.relu(self.conv2(enc_input).transpose(1, 2))[:, 0:-1, :]
-            enc_input += self.position_enc(src_pos[:, 0:enc_input.size(1)])
-            src_seq = src_seq[:, 0:enc_input.size(1)]
-        elif hasattr(self, 'position_enc'):
+        if hasattr(self, 'position_enc'):
             enc_input += self.position_enc(src_pos)
         
         if self.enc_transform == 'special_token':
@@ -136,31 +107,93 @@ class GraphEncoder(nn.Module):
 
         return enc_output
 
-class BagOfTokensEncoder(nn.Module):
+
+
+class ResidualMLP(nn.Module):
+    ''' A residual connection followed by a layer norm '''
+    def __init__(self, in_dim, d_hidden, dropout):
+        super(ResidualMLP, self).__init__()
+        self.layers = [nn.Linear(in_dim, d_hidden),
+                       nn.ReLU(),
+                       nn.Dropout(dropout),
+                       nn.Linear(d_hidden, in_dim),
+                       nn.LayerNorm(in_dim)]
+        self.layers = nn.Sequential(*self.layers)
+        
+    def forward(self, x):
+        return x + self.layers(x)
+    
+class MLPEncoder(nn.Module):
     """
     input: multi-hot vector [B, V], V is vocab size
     output: z [B, 1, d_latent]
     """
-    def __init__(self, d_in, d_model=512, d_hidden=512, d_latent=64, n_layers=3, dropout=0.1):
+    def __init__(self, d_in, d_model=512, d_hidden=512, d_latent=64, n_layers=3, dropout=0.1, pool="mean"):
         super().__init__()
-        
-        self.emb = nn.linear(d_in, d_model, bias=False)
+
+        self.pool = pool
+        self.emb = nn.Linear(d_in, d_model, bias=False)
         layers = []
         in_dim = d_model
-        for _ in range(n_layers - 1):
-            layers.append(nn.Linear(in_dim, d_hidden))
-            layers.append(nn.ReLU())
-            layers.append(nn.Dropout(dropout))
-            in_dim = d_hidden
-        layers.append(nn.Linear(in_dim, d_latent))
-        self.mlp = nn.Sequential(*layers)
-        self.ln = nn.LayerNorm(d_latent)
-
+        self.blocks = nn.ModuleList([ResidualMLP(in_dim, d_hidden, dropout) 
+                                     for _ in range(n_layers)])
+        self.latent_proj = nn.Linear(in_dim, d_latent)
     def forward(self, multi_hot):
         # multi_hot: [B, V] -> bag embedding = multi_hot @ E (E=[V,d_model])
-        bag = self.emb(multi_hot)  # [B, d_model]
-
-        z = self.mlp(bag)  # [B, d_latent]
-        z = self.ln(z)
+        out = self.emb(multi_hot)  # [B, d_model]
+        
+        if self.pool == "mean":
+            counts = multi_hot.sum(-1, keepdim=True).clamp_min(1.0)
+            out = out / counts
+        for block in self.blocks:
+            out = block(out)
+        z = self.latent_proj(out)
         z = z.unsqueeze(1)  # [B, 1, d_latent]
+        return z
+    
+class DeepSetsEncoder(nn.Module):
+    """
+    输入:
+      - multi_hot: [B, V] 
+
+    输出:
+      - z: [B, 1, d_latent]   
+    """
+    def __init__(self, vocab_size, d_model=512, d_latent=64, dropout=0.1,  pool="mean"):
+        super().__init__()
+        self.pool = pool
+        # embedding embedding E
+        self.emb = nn.Embedding(vocab_size, d_model, padding_idx=0)
+
+        # aggregate func φ
+        self.phi = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model, d_model)
+        )
+
+        # map to latent space ρ
+        self.rho = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model, d_latent)
+        )
+
+    def forward(self, multi_hot: torch.Tensor):
+        """
+        multi_hot: [B, V]  
+        """
+        # [B, V] @ [V, d_model] = [B, d_model] (bag embedding)
+        emb = multi_hot.float() @ self.emb.weight  # sum pooling by default
+
+        if self.pool == "mean":
+            counts = multi_hot.sum(-1, keepdim=True).clamp_min(1.0)
+            emb = emb / counts
+        elif self.pool == "max":
+            raise NotImplementedError("max pooling not implemented yet")
+
+        h = self.phi(emb)
+        z = self.rho(h).unsqueeze(1)  # [B,1,d_latent]
         return z
