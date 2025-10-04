@@ -134,6 +134,13 @@ def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,data_dict,opt
         tgt_out = gold_binary.data
         pred_out = torch.sigmoid(logits).data
 
+        # print(gold[0])
+        # print(gold_binary[0])
+        # print(pred_out[0][gold_binary[0]==0])
+        # print(pred_out[0][gold_binary[0]==1])
+        # print('++++++++++++++++++++++++++++++++++')
+
+
         ## Collect batch predictions and targets ##
         all_predictions[start_idx:end_idx] = pred_out
         all_targets[start_idx:end_idx] = tgt_out

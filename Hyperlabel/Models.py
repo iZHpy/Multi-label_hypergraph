@@ -70,7 +70,7 @@ class Hyperlabel(nn.Module):
         ############# Decoder ###########
         if self.feat_mode == 'tokens':
             n_src_vocab = n_src_vocab - 4
-        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_model)
+        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
     
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
@@ -91,7 +91,7 @@ class Hyperlabel(nn.Module):
 
     def label_forward(self, binary_tgt, feat_latent, start_index, end_index):
         # h0 = self.dropout(F.relu(self.label_embedding.weight))  # (num_labels, d_model)
-        h0 = self.dropout(self.label_embedding.weight)  # (num_labels, d_model)
+        h0 = self.dropout(F.relu(self.label_embedding.weight))  # (num_labels, d_model)
         label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=feat_latent, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
         label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
         label_out = {'label_latent': label_latent, 'label_space': label_space}
@@ -99,9 +99,9 @@ class Hyperlabel(nn.Module):
 
     def forward(self, src, adj, binary_tgt, start_index, end_index):
         src_seq, src_pos, src_multi_hot = src
-        
+
         # sample_encode
-        if self.feat_mode == 'tokens' or self.feat_mode == 'vec':
+        if (self.feat_mode == 'tokens') or (self.feat_mode == 'vec'):
             fx_out = self.feat_forward(src_seq, adj, src_pos)
         else:
             fx_out = self.feat_forward(src_multi_hot, adj, src_pos)

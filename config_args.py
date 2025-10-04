@@ -32,8 +32,8 @@ def get_args(parser):
     parser.add_argument('-n_layers_sample_enc', type=int, default=5)
     parser.add_argument('-n_layers_label_enc', type=int, default=5)
     parser.add_argument('-lr', type=float, default=0.0002)
-    parser.add_argument('-lr_step_size', type=int, default=1000)
-    parser.add_argument('-lr_decay', type=float, default=1)
+    parser.add_argument('-lr_step_size', type=int, default=10)
+    parser.add_argument('-lr_decay', type=float, default=0.8)
     parser.add_argument('-sample_enc_dropout', type=float, default=0.1)
     parser.add_argument('-label_enc_dropout', type=float, default=0.1)
     parser.add_argument('-encoder_type', type=str, choices=['MLP', 'DeepSets', 'SetTransformer'], default='MLP')
@@ -56,7 +56,6 @@ def get_args(parser):
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-load_pretrained', action='store_true')
     parser.add_argument('-nll_coeff', type=float, default=1.0)
-    parser.add_argument('-fix_emb_epochs', type=int, default=30)
     opt = parser.parse_args()
     return opt
 
@@ -74,8 +73,8 @@ def config_args(opt):
     if opt.d_k == -1:
         opt.d_k = int(opt.d_model / opt.n_head)
 
-    if opt.dataset in ['yeast']:
-        opt.feat_mode = 'float'
+    if opt.dataset in ['yeast', 'scene', 'nuswide_vector']:
+        opt.feat_mode = 'vec'
         opt.no_enc_pos_embedding = True
 
     if opt.d_inner_hid == -1:

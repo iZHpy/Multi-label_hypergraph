@@ -317,9 +317,6 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
     all_targets = all_targets.numpy()
     all_predictions = all_predictions.numpy()
 
-
-    
-
     if all_metrics:
         meanAUC,medianAUC,varAUC,allAUC = compute_auc(all_targets,all_predictions)
         meanAUPR,medianAUPR,varAUPR,allAUPR = compute_aupr(all_targets,all_predictions)
@@ -332,7 +329,8 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
     metrics_dict = {}
 
     for optimal_threshold in (THRESHOLDS if THRESHOLDS is not None else [0.5]):
-
+        # print(optimal_threshold)
+        # print(all_predictions)
         all_predictions[all_predictions < optimal_threshold] = 0
         all_predictions[all_predictions >= optimal_threshold] = 1
             
@@ -355,7 +353,7 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
                             ('Example-based F1', exf1),
                             ('Label-based Micro F1', mif1),
                             ('Label-based Macro F1', maf1)])
-
+        # print(eval_ret)
         
         ACC = eval_ret['Subset accuracy']
         HA = eval_ret['Hamming accuracy']
@@ -368,7 +366,7 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
         metrics_dict['ebF1'] = max(metrics_dict.get('ebF1',0), ebF1)
         metrics_dict['miF1'] = max(metrics_dict.get('miF1',0), miF1)
         metrics_dict['maF1'] = max(metrics_dict.get('maF1',0), maF1)
-        
+
     metrics_dict['meanAUC'] = meanAUC
     metrics_dict['medianAUC'] = medianAUC
     metrics_dict['meanAUPR'] = meanAUPR
@@ -392,6 +390,7 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
         # print('mAUPR: '+str(medianAUPR))
         print('uFDR: '+str(meanFDR))
         # print('mFDR:  '+str(medianFDR))
+
         
     return metrics_dict
 

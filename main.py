@@ -67,13 +67,13 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    # print(data['dict'].keys())
+    # print(data['dict']['tgt'])
     # print(data['train'].keys())
-    # print(len(data['train']['src']))
-    # print(data['train']['src'][0])
+    # print(len(data['train']['tgt']))
+    # print(data['train']['tgt'][1])
     # raise Exception("Debug stop")
 
-    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider']:
+    if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider', 'data/yeast', 'data/sider', 'data/nuswide_vector', 'data/scene']:
         train_labels = generate_train_labels(data['train']['tgt'])
 
     train_data, valid_data, test_data, opt = process_data(data, opt)
@@ -117,8 +117,7 @@ def main(opt):
     totol_steps = len(train_data) * opt.epoch
     warm_steps = int(totol_steps * 0.05)
     scheduler = utils.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=warm_steps, num_training_steps=totol_steps)
-    # scheduler = torch.torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay,
-    #                                                   last_epoch=-1)
+    # scheduler = torch.torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay, last_epoch=-1)
 
     adv_optimizer = None
 
