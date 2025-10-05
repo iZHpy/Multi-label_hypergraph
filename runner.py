@@ -4,6 +4,7 @@ import utils.utils as utils
 from utils.data_loader import process_data
 import torch, torch.nn as nn, torch.nn.functional as F
 import lamp.Constants as Constants
+from lamp.Constants import THRESHOLDS
 from lamp.Models import LAMP
 from lamp.Translator import translate
 from config_args import config_args,get_args
@@ -70,7 +71,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		# torch.save(all_predictions,path.join(opt.model_name,'epochs','valid_preds'+str(epoch_i+1)+'.pt'))
 		# torch.save(all_targets,path.join(opt.model_name,'epochs','valid_targets'+str(epoch_i+1)+'.pt'))
-		valid_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)
+		valid_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		valid_losses += [valid_loss]
 
 		################################## TEST ###################################
@@ -87,7 +88,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		# torch.save(all_predictions,path.join(opt.model_name,'epochs','test_preds'+str(epoch_i+1)+'.pt'))
 		# torch.save(all_targets,path.join(opt.model_name,'epochs','test_targets'+str(epoch_i+1)+'.pt'))
-		test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)
+		test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		
 		best_valid,best_test = logger.evaluate(train_metrics,valid_metrics,test_metrics,epoch_i,opt.total_num_parameters)
 
