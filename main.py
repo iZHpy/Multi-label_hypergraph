@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args)
-
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 def generate_train_labels(list_of_lists):
     """
@@ -70,12 +70,6 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    # print(data['train']['src'][1])
-    # print(len(data['dict']['src']))
-    # print(data['train'].keys())
-    # print(len(data['train']['tgt']))
-    # print(data['train']['tgt'][1])
-    # raise Exception("Debug stop")
 
     if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider', 'data/yeast', 'data/sider', 'data/nuswide_vector', 'data/scene']:
         train_labels = generate_train_labels(data['train']['tgt'])

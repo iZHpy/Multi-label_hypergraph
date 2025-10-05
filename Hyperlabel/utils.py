@@ -15,7 +15,7 @@ def position_encoding_init(n_position, d_pos_vec):
     pe[:, 0::2] = torch.sin(position.float() * div_term)
     pe[:, 1::2] = torch.cos(position.float() * div_term)
     pe[0] = 0
-    return pe
+    return pe.type(torch.FloatTensor)
 
 # def position_encoding_init(n_position, d_pos_vec):
 #     ''' Init the sinusoid position encoding table '''

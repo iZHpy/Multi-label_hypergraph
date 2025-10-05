@@ -87,7 +87,6 @@ class MultiHeadAttention(nn.Module):
         if hasattr(self,'dropout2'):
             q = self.dropout2(q)
 
-        
         q = self.w_qs(q).view(sz_b, len_q, n_head, d_k)
         k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
         v = self.w_vs(v).view(sz_b, len_v, n_head, d_v)
@@ -96,7 +95,6 @@ class MultiHeadAttention(nn.Module):
         q = q.permute(2, 0, 1, 3).contiguous().view(-1, len_q, d_k) # (n*b) x lq x dk
         k = k.permute(2, 0, 1, 3).contiguous().view(-1, len_k, d_k) # (n*b) x lk x dk
         v = v.permute(2, 0, 1, 3).contiguous().view(-1, len_v, d_v) # (n*b) x lv x dv
-
 
         if attn_mask is not None:
             attn_mask = attn_mask.repeat(n_head, 1, 1) # (n*b) x .. x ..

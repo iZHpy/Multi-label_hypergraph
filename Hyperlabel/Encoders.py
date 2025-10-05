@@ -66,6 +66,14 @@ class GraphEncoder(nn.Module):
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
         enc_input = self.src_word_emb(src_seq)
+        pad_idx = Constants.PAD
+        num_pos = self.position_enc.num_embeddings  # 应该等于 n_max_seq + 1
+
+        # 如果有负数/越界，先打印出来定位
+        min_v = int(src_pos.min())
+        max_v = int(src_pos.max())
+        assert min_v >= 0 and max_v < num_pos, \
+                    f"src_pos out of range: min={min_v}, max={max_v}, allowed=[0, {num_pos-1}] (PAD={pad_idx})"
         if hasattr(self, 'position_enc'):
             enc_input += self.position_enc(src_pos)
         
