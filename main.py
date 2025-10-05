@@ -70,7 +70,8 @@ def main(opt):
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    # print(data['train']['src'][:2])
+    # print(data['train']['src'][1])
+    # print(len(data['dict']['src']))
     # print(data['train'].keys())
     # print(len(data['train']['tgt']))
     # print(data['train']['tgt'][1])
@@ -115,11 +116,12 @@ def main(opt):
 
     opt.total_num_parameters = int(utils.count_parameters(model))
 
-    optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=opt.lr, betas=(0.9, 0.98), weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=opt.lr, weight_decay=1e-5)
     
-    totol_steps = len(train_data) * opt.epoch
-    warm_steps = int(totol_steps * 0.05)
-    scheduler = utils.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=warm_steps, num_training_steps=totol_steps)
+    # totol_steps = len(train_data) * opt.epoch
+    # warm_steps = int(totol_steps * 0.05)
+    # scheduler = utils.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=warm_steps, num_training_steps=totol_steps)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, eta_min=opt.eta_min, T_0=opt.T0 * len(train_data), T_mult=opt.T_mult)
     # scheduler = torch.torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay, last_epoch=-1)
 
     adv_optimizer = None
