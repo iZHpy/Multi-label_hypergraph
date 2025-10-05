@@ -107,6 +107,20 @@ class GraphEncoder(nn.Module):
         return enc_output
 
    
+class ResidualMLP(nn.Module):
+    ''' A residual connection followed by a layer norm '''
+    def __init__(self, in_dim, d_hidden, dropout):
+        super(ResidualMLP, self).__init__()
+        self.layers = [nn.Linear(in_dim, d_hidden),
+                       nn.ReLU(),
+                       nn.Dropout(dropout),
+                       nn.Linear(d_hidden, in_dim),
+                       nn.LayerNorm(in_dim)]
+        self.layers = nn.Sequential(*self.layers)
+
+    def forward(self, x):
+        return x + self.layers(x)
+
 class MLPEncoder(nn.Module):
     """
     input: multi-hot vector [B, V], V is vocab size
@@ -119,25 +133,22 @@ class MLPEncoder(nn.Module):
         self.emb = nn.Linear(d_in, d_model, bias=False)
         layers = []
         in_dim = d_model
-        for _ in range(n_layers):
-            layers.append(nn.Linear(in_dim, d_hidden))
-            layers.append(nn.ReLU())
-            layers.append(nn.Dropout(dropout))
-            in_dim = d_hidden
-        self.blocks = nn.Sequential(*layers)
+        self.blocks = nn.ModuleList([ResidualMLP(in_dim, d_hidden, dropout) 
+                                     for _ in range(n_layers)])
         self.latent_proj = nn.Linear(in_dim, d_latent)
     def forward(self, multi_hot):
         # multi_hot: [B, V] -> bag embedding = multi_hot @ E (E=[V,d_model])
         out = self.emb(multi_hot)  # [B, d_model]
-        
+
         if self.pool == "mean":
             counts = multi_hot.sum(-1, keepdim=True).clamp_min(1.0)
             out = out / counts
-        
-        h = self.blocks(out)  # [B, d_hidden]
-        z = self.latent_proj(h)
+        for block in self.blocks:
+            out = block(out)
+        z = self.latent_proj(out)
         z = z.unsqueeze(1)  # [B, 1, d_latent]
         return z
+
     
 class DeepSetsEncoder(nn.Module):
     """

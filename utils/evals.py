@@ -329,20 +329,19 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
     metrics_dict = {}
 
     for optimal_threshold in (THRESHOLDS if THRESHOLDS is not None else [0.5]):
-        # print(optimal_threshold)
-        # print(all_predictions)
-        all_predictions[all_predictions < optimal_threshold] = 0
-        all_predictions[all_predictions >= optimal_threshold] = 1
-            
-        acc_ = list(subset_accuracy(all_targets, all_predictions, axis=1, per_sample=True))
-        hl_ = list(hamming_loss(all_targets, all_predictions, axis=1, per_sample=True))
-        exf1_ = list(example_f1_score(all_targets, all_predictions, axis=1, per_sample=True))        
+        all_predictions_temp = all_predictions.copy()
+        all_predictions_temp[all_predictions < optimal_threshold] = 0
+        all_predictions_temp[all_predictions >= optimal_threshold] = 1
+
+        acc_ = list(subset_accuracy(all_targets, all_predictions_temp, axis=1, per_sample=True))
+        hl_ = list(hamming_loss(all_targets, all_predictions_temp, axis=1, per_sample=True))
+        exf1_ = list(example_f1_score(all_targets, all_predictions_temp, axis=1, per_sample=True))        
         acc = numpy.mean(acc_)
         hl = numpy.mean(hl_)
         exf1 = numpy.mean(exf1_)
         
 
-        tp, fp, fn = compute_tp_fp_fn(all_targets, all_predictions, axis=0)
+        tp, fp, fn = compute_tp_fp_fn(all_targets, all_predictions_temp, axis=0)
         mif1 = f1_score_from_stats(tp, fp, fn, average='micro')
         maf1 = f1_score_from_stats(tp, fp, fn, average='macro')
 
@@ -353,7 +352,6 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
                             ('Example-based F1', exf1),
                             ('Label-based Micro F1', mif1),
                             ('Label-based Macro F1', maf1)])
-        # print(eval_ret)
         
         ACC = eval_ret['Subset accuracy']
         HA = eval_ret['Hamming accuracy']

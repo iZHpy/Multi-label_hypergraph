@@ -26,9 +26,7 @@ def test_epoch(model, test_data,opt,data_dict, description):
 	for batch in tqdm(test_data, mininterval=0.5, desc=description, leave=False):
 		src,adj,tgt = batch
 		gold = tgt[:, 1:]
-		print('src', src[0].size())
 		
-
 		pad_batch = False
 		if opt.multi_gpu and (batch[0][0].size(0) < opt.batch_size):
 			pad_batch = True
@@ -55,11 +53,11 @@ def test_epoch(model, test_data,opt,data_dict, description):
 		feat_out = torch.sigmoid(feat_out).data
 		gold_binary = gold_binary.data
 
-		print(gold[0])
-		print(gold_binary[0])
-		print(feat_out[gold_binary==0])
-		print(feat_out[gold_binary==1])
-		print('++++++++++++++++++++++++++++++++++')
+		# print(gold[0])
+		# print(gold_binary[0])
+		# print(feat_out[gold_binary==0])
+		# print(feat_out[gold_binary==1])
+		# print('++++++++++++++++++++++++++++++++++')
 	
 		all_predictions[start_idx:end_idx] = feat_out
 		all_targets[start_idx:end_idx] = gold_binary
