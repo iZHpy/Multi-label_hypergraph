@@ -22,6 +22,7 @@ def get_args(parser):
     parser.add_argument('-epoch', type=int, default=50)
     parser.add_argument('-batch_size', type=int, default=64)
     parser.add_argument('-test_batch_size', type=int, default=-1)
+    parser.add_argument('-seed', type=int, default=42)
     parser.add_argument('-d_model', type=int, default=512)  # model dimension
     parser.add_argument('-d_emb', type=int, default=512)  # embedding dimension
     parser.add_argument('-d_latent', type=int, default=64)  # latent dimension

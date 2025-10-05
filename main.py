@@ -57,17 +57,20 @@ class Logger(object):
 
 def start_logging(log_file_path):
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-
     sys.stdout = Logger(log_file_path)
 
 
 def main(opt):
+    np.random.seed(opt.seed) 
+    torch.manual_seed(opt.seed)
+    torch.cuda.manual_seed(opt.seed)
+    
     log_file_path = os.path.join(opt.model_name, 'results.txt')
     start_logging(log_file_path)
 
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
-    # print(data['dict']['tgt'])
+    # print(data['train']['src'][:2])
     # print(data['train'].keys())
     # print(len(data['train']['tgt']))
     # print(data['train']['tgt'][1])

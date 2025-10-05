@@ -119,7 +119,7 @@ class ResidualMLP(nn.Module):
         self.layers = nn.Sequential(*self.layers)
 
     def forward(self, x):
-        return x + self.layers(x)
+        return self.layers(x) + x
 
 class MLPEncoder(nn.Module):
     """

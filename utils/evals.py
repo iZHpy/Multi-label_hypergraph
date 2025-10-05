@@ -345,8 +345,6 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
         mif1 = f1_score_from_stats(tp, fp, fn, average='micro')
         maf1 = f1_score_from_stats(tp, fp, fn, average='macro')
 
-        
-
         eval_ret = OrderedDict([('Subset accuracy', acc),
                             ('Hamming accuracy', 1 - hl),
                             ('Example-based F1', exf1),
@@ -377,11 +375,11 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
     metrics_dict['time'] = elapsed
 
     if verbose:
-        print('ACC:   '+str(ACC))
-        print('HA:    '+str(HA))
-        print('ebF1:  '+str(ebF1))
-        print('miF1:  '+str(miF1))
-        print('maF1:  '+str(maF1))
+        print('ACC:   '+ str(metrics_dict['ACC']))
+        print('HA:    '+str(metrics_dict['HA']))
+        print('ebF1:  '+str(metrics_dict['ebF1']))
+        print('miF1:  '+str(metrics_dict['miF1']))
+        print('maF1:  '+str(metrics_dict['maF1']))
         print('uAUC:  '+str(meanAUC))
         # print('mAUC:  '+str(medianAUC))
         print('uAUPR: '+str(meanAUPR))
