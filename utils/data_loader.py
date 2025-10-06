@@ -44,13 +44,13 @@ def process_data(data,opt):
         sample = sorted(sample, key=ranking.index)
 
     print('max_seq_len', data['settings'].max_seq_len)
-    print('src_vocab', data['dict']['src'])
-    print('n_src_vocab', len(data['dict']['src']))
+    print('src_vocab', data['dict']['tgt'])
     print('n_tgt_vocab', len(data['dict']['tgt']))
     print('n_train', len(data['train']['src']))
     print('n_valid', len(data['valid']['src']))
     print('n_test', len(data['test']['src']))
-
+    print('sample src', data['train']['src'][0])
+    print('sample tgt', data['train']['tgt'][0])
     for sample in data['train']['src']:
         if len(sample) > data['settings'].max_seq_len:
             data['settings'].max_seq_len = len(sample)
@@ -63,8 +63,8 @@ def process_data(data,opt):
     process_multi_hot(data, opt, type='valid')
     process_multi_hot(data, opt, type='test')
     
-    if not 'sider' in opt.dataset:
-        data['train']['adj'],data['valid']['adj'],data['test']['adj'] = None,None,None
+    # if not 'sider' in opt.dataset:
+    data['train']['adj'],data['valid']['adj'],data['test']['adj'] = None,None,None
 
     #========= Preparing DataLoader =========#
     train_data = DataLoader(

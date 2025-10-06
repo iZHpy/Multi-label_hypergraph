@@ -18,7 +18,6 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args)
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 def generate_train_labels(list_of_lists):
     """
@@ -110,7 +109,7 @@ def main(opt):
 
     opt.total_num_parameters = int(utils.count_parameters(model))
 
-    optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=opt.lr, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=opt.lr, betas=(0.9, 0.999), weight_decay=1e-5)
     
     # totol_steps = len(train_data) * opt.epoch
     # warm_steps = int(totol_steps * 0.05)

@@ -122,8 +122,8 @@ class ResidualMLP(nn.Module):
         self.layers = [nn.Linear(in_dim, d_hidden),
                        nn.ReLU(),
                        nn.Dropout(dropout),
-                       nn.Linear(d_hidden, in_dim),
-                       nn.LayerNorm(in_dim)]
+                       nn.LayerNorm(d_hidden),
+                       nn.Linear(d_hidden, in_dim)]
         self.layers = nn.Sequential(*self.layers)
 
     def forward(self, x):

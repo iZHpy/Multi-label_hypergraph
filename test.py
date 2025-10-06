@@ -11,9 +11,7 @@ from pdb import set_trace as stop
 from tqdm import tqdm
 
 
-
-
-def test_epoch(model, test_data,opt,data_dict, description):
+def test_epoch(model, test_data,opt, description):
 	model.eval()
 	out_len = (opt.tgt_vocab_size)
 	all_predictions = torch.zeros(len(test_data._src_insts),out_len)
@@ -53,11 +51,12 @@ def test_epoch(model, test_data,opt,data_dict, description):
 		feat_out = torch.sigmoid(feat_out).data
 		gold_binary = gold_binary.data
 
-		# print(gold[0])
-		# print(gold_binary[0])
-		# print(feat_out[gold_binary==0])
-		# print(feat_out[gold_binary==1])
-		# print('++++++++++++++++++++++++++++++++++')
+		# if start_idx == 0:
+		# 	print(gold[0])
+		# 	print(gold_binary[0])
+		# 	print(feat_out[gold_binary==0])
+		# 	print(feat_out[gold_binary==1])
+		# 	print('++++++++++++++++++++++++++++++++++')
 	
 		all_predictions[start_idx:end_idx] = feat_out
 		all_targets[start_idx:end_idx] = gold_binary

@@ -12,9 +12,11 @@ from pdb import set_trace as stop
 from tqdm import tqdm
 from train import train_epoch
 from test import test_epoch
+import optuna
+
 warnings.filterwarnings("ignore")
 
-def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_optimizer,scheduler, opt, data_dict):
+def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_optimizer,scheduler, opt, trial=None):
 	logger = evals.Logger(opt)
 
 	valid_losses = []
@@ -23,7 +25,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 	if opt.test_only:
 		start = time.time()
-		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
+		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,'(Testing)')
 		elapsed = ((time.time()-start)/60)
 		print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
 		test_loss = test_loss/len(test_data._src_insts)
@@ -41,7 +43,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		print('================= Epoch', epoch_i+1, '=================')
 		################################## TRAIN ###################################
 		start = time.time()
-		all_predictions,all_targets,train_loss=train_epoch(model,train_data,crit,optimizer,scheduler,(epoch_i+1),data_dict,opt)
+		all_predictions,all_targets,train_loss=train_epoch(model,train_data,crit,optimizer,scheduler,(epoch_i+1),opt)
 		elapsed = ((time.time()-start)/60)
 		print('\n(Training) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
 		train_total_loss, train_nll_loss, train_nll_loss_x, train_kl_loss, train_cpc_loss = train_loss
@@ -60,7 +62,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
   
   
 		start = time.time()
-		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,data_dict,'(Validation)')
+		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,'(Validation)')
 		elapsed = ((time.time()-start)/60)
 		print('\n(Validation) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
 		valid_total_loss, valid_nll_loss, valid_nll_loss_x, valid_kl_loss, valid_cpc_loss = valid_loss
@@ -82,7 +84,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 		################################## TEST ###################################
 		start = time.time()
-		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,data_dict,'(Testing)')
+		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,'(Testing)')
 		elapsed = ((time.time()-start)/60)
 		print('\n(Testing) elapse: {elapse:3.3f} min'.format(elapse=elapsed))
 		test_total_loss, test_nll_loss, test_nll_loss_x, test_kl_loss, test_cpc_loss = test_loss
@@ -121,3 +123,11 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		loss_file.write(','+str(valid_loss))
 		loss_file.write(','+str(test_loss))
 		loss_file.write('\n')
+
+		if trial is not None:
+			trial.report(best_test['ebF1'], step=epoch_i)  # val_metric 用你目标指标，比如 ebF1
+			if trial.should_prune():
+				raise optuna.TrialPruned()
+
+	return best_test
+	

@@ -70,8 +70,8 @@ class Hyperlabel(nn.Module):
         ############# Decoder ###########
         if self.feat_mode == 'tokens':
             n_src_vocab = n_src_vocab - 4
-        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
-        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
+        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
+        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
         
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
@@ -169,6 +169,6 @@ def compute_loss(input_label, output, args=None):
     nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean')
     nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
     cpc_loss = supconloss(logits_e, logits_x)
-    sum_loss = nll_loss * 0.2 + nll_loss_x + cpc_loss * 0.2 + kl_loss *0.2
+    sum_loss = nll_loss  + nll_loss_x * 3. + cpc_loss
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

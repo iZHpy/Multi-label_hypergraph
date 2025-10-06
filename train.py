@@ -96,7 +96,7 @@ def print_decoder_grad(decoder,nll_loss,nll_loss_x):
     cosine = num / den
     print("grad cosine between BCE_x and BCE_e on decoder:", cosine)
 
-def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,data_dict,opt):
+def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,opt):
     model.train()
 
     out_len = opt.tgt_vocab_size

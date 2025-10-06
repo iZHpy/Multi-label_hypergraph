@@ -332,7 +332,6 @@ def compute_metrics(all_predictions,all_targets,loss,args,elapsed,all_metrics=Tr
         all_predictions_temp = all_predictions.copy()
         all_predictions_temp[all_predictions < optimal_threshold] = 0
         all_predictions_temp[all_predictions >= optimal_threshold] = 1
-
         acc_ = list(subset_accuracy(all_targets, all_predictions_temp, axis=1, per_sample=True))
         hl_ = list(hamming_loss(all_targets, all_predictions_temp, axis=1, per_sample=True))
         exf1_ = list(example_f1_score(all_targets, all_predictions_temp, axis=1, per_sample=True))        
