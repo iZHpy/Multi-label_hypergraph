@@ -23,6 +23,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 
 	losses = []
 
+	max_metrics = {'ACC':1000000,'HA':0,'ebF1':0,'miF1':0,'maF1':0,'meanAUC':0,'medianAUC':0,'meanAUPR':0,'medianAUPR':0,'meanFDR':0,'medianFDR':0, 'allAUC':None,'allAUPR':None}
 	if opt.test_only:
 		start = time.time()
 		all_predictions, all_targets, test_loss = test_epoch(model, test_data,opt,'(Testing)')
@@ -99,7 +100,6 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		test_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True, THRESHOLDS=THRESHOLDS)
 		
 		best_valid,best_test = logger.evaluate(train_metrics,valid_metrics,test_metrics,epoch_i,opt.total_num_parameters)
-  
 		print('\n')
 		print('**********************************')
 		print('best ACC:  '+str(best_test['ACC']))
@@ -124,10 +124,13 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		loss_file.write(','+str(test_loss))
 		loss_file.write('\n')
 
+		if best_test['ebF1'] >= max_metrics['ebF1']:
+			max_metrics = best_test
+
 		if trial is not None:
-			trial.report(best_test['ebF1'], step=epoch_i)  # val_metric 用你目标指标，比如 ebF1
+			trial.report(max_metrics['ebF1'], step=epoch_i)  # val_metric 用你目标指标，比如 ebF1
 			if trial.should_prune():
 				raise optuna.TrialPruned()
 
-	return best_test
+	return max_metrics
 	

@@ -112,8 +112,6 @@ def train_eval(params, trial, opt):
     metrics = run_model(model, train_data, valid_data, test_data, crit, optimizer, adv_optimizer, scheduler, opt, trial=trial)
     if trial is not None and isinstance(metrics, dict):
         trial.set_user_attr("metrics", {k: v for k, v in metrics.items()})
-
-    sys.stdout = sys.stdout.terminal
     return metrics['ebF1']
 
 
@@ -130,7 +128,11 @@ def objective(trial):
         'lr': trial.suggest_float('lr', 2e-5, 1e-3, log=True),
         'eta_min': trial.suggest_float('eta_min', 1e-6, 1e-5, log=True),
         'T0': trial.suggest_int('T0', 1, 2, 4),
-        'T_mult': trial.suggest_categorical('T_mult', [2, 4])
+        'T_mult': trial.suggest_categorical('T_mult', [2, 4]),
+        'nll_e_weight': trial.suggest_float('nll_e_weight', 1.0, 6.0),
+        'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0),
+        'kl_weight': trial.suggest_float('kl_weight', 0, 1),
+        'cpc_weight': trial.suggest_float('cpc_weight', 0, 1),
     }
     metric = train_eval(params, opt=opt, trial=trial)
     return metric
@@ -143,7 +145,7 @@ if __name__ == '__main__':
         n_warmup_steps=0,        # 不等warmup步也行（你用epoch作为step）
         interval_steps=1         # 每个epoch都评估
     )
-    study = optuna.create_study(direction='maximize', pruner=pruner)
+    study = optuna.create_study(direction='maximize', pruner=None)
     study.optimize(objective, n_trials=35, show_progress_bar=True)
     
     for t in study.trials:

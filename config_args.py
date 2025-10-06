@@ -68,10 +68,6 @@ def config_args(opt):
 
     # if 'reuters' in opt.dataset or 'bibtext' in opt.dataset:
 
-    if opt.dataset in ['deepsea', 'gm12878', 'gm12878_unique2', 'gm12878_unique', 'tcell']:
-        opt.feat_mode = 'onehot'
-
-
     opt.d_v = int(opt.d_model / opt.n_head)
     opt.d_k = int(opt.d_model / opt.n_head)
 

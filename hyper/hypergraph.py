@@ -16,6 +16,8 @@ class WeightedHypergraph:
 
     def create_from_labels(self, labels):
         for sample_id, sample_labels in enumerate(labels):
+            if len(sample_labels) == 0:
+                continue
             edge_key = tuple(sorted(sample_labels)) if len(sample_labels) > 1 else (sample_labels[0],)
             self.hyperedges[edge_key]["weight"] += 1
             self.hyperedges[edge_key]["samples"].add(sample_id)
@@ -77,6 +79,8 @@ class WeightedHypergraph:
         return data
 
     def get_hyperedge_id(self, sample_id):
+        if sample_id not in self.sample_to_edge:
+            return None
         edge_key = self.sample_to_edge[sample_id]
         return self.edge_to_id[edge_key]
 

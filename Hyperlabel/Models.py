@@ -70,8 +70,8 @@ class Hyperlabel(nn.Module):
         ############# Decoder ###########
         if self.feat_mode == 'tokens':
             n_src_vocab = n_src_vocab - 4
-        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
-        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
+        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
+        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
         
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
@@ -95,8 +95,11 @@ class Hyperlabel(nn.Module):
         h0 = self.dropout(self.label_embedding.weight)  # (num_labels, d_model)
         batch_features  = feat_latent if self.training else None
         label_space, _ = self.label_encoder(hypergraph=self.hypergraph, batch_features=batch_features, node_features=h0, start_index=start_index, end_index=end_index, device=feat_latent.device)
-        label_latent = torch.matmul(binary_tgt, label_space) / binary_tgt.sum(1, keepdim=True)
-        label_out = {'label_latent': label_latent, 'label_space': label_space}
+        counts = binary_tgt.sum(dim=1, keepdim=True)  # [B, 1]
+        has_label = counts > 0
+        counts = torch.clamp(counts, min=1.0)                  
+        label_latent = torch.matmul(binary_tgt, label_space) / counts * has_label.float()  # [B, d_model]
+        label_out = {'label_latent': label_latent, 'label_space': label_space, 'mask': has_label}
         return label_out
 
     def forward(self, src, adj, binary_tgt, start_index, end_index):
@@ -110,10 +113,11 @@ class Hyperlabel(nn.Module):
 
             
         feat_latent = fx_out['feat_latent']
-         
+
         # label_encode
         fe_out = self.label_forward(binary_tgt, feat_latent, start_index, end_index)
         label_latent = fe_out['label_latent']
+
         # decode
         label_space = fe_out['label_space']
         embs = self.label_embedding.weight
@@ -135,14 +139,11 @@ class Hyperlabel(nn.Module):
         return output
 
 def compute_loss(input_label, output, args=None):
-    logits_e, label_space,  label_latent = \
-        output['logits_e'], output['label_space'],  output['label_latent']
+    logits_e, label_space,  label_latent, mask = \
+        output['logits_e'], output['label_space'],  output['label_latent'], output['mask']
     logits_x, feat_latent = \
         output['logits_x'], output['feat_latent']
 
-    # kl_loss = utils.kl_align_samples_as_gauss(label_latent, feat_latent, tau=1.0, reduction='mean')
-    # kl_loss = kl_latents_as_logits(label_latent, feat_latent, tau=1.0)
-    # kl_loss = torch.tensor(0.0).to(label_latent.device)
     kl_loss = 1 - F.cosine_similarity(
         F.normalize(feat_latent, dim=-1), 
         F.normalize(label_latent, dim=-1), dim=-1
@@ -153,7 +154,6 @@ def compute_loss(input_label, output, args=None):
         n_label = labels.shape[1]
         emb_labels = torch.eye(n_label).to(labels.device)
         mask = torch.matmul(labels, emb_labels)
-
         anchor_dot_contrast = torch.cat([logits_e, logits_x], dim=0)
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
@@ -166,9 +166,15 @@ def compute_loss(input_label, output, args=None):
         loss = loss.mean()
         return loss
 
-    nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean')
-    nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
-    cpc_loss = supconloss(logits_e, logits_x)
+    if args.dataset in ['data/nuswide_vector']:
+        logitse, logitsx, input_label = logits_e[mask.squeeze()], logits_x[mask.squeeze()], input_label[mask.squeeze()]
+        nll_loss = F.binary_cross_entropy_with_logits(logitse, input_label, reduction='mean')
+        nll_loss_x = F.binary_cross_entropy_with_logits(logitsx, input_label, reduction='mean')
+        cpc_loss = supconloss(logitse, logitsx)
+    else:
+        nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean')
+        nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
+        cpc_loss = supconloss(logits_e, logits_x)
     sum_loss = nll_loss * args.nll_e_weight  + nll_loss_x * args.nll_x_weight + cpc_loss * args.cpc_weight + kl_loss * args.kl_weight
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

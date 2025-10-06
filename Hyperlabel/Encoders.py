@@ -147,7 +147,6 @@ class MLPEncoder(nn.Module):
     def forward(self, multi_hot):
         # multi_hot: [B, V] -> bag embedding = multi_hot @ E (E=[V,d_model])
         out = self.emb(multi_hot)  # [B, d_model]
-
         if self.pool == "mean":
             counts = multi_hot.sum(-1, keepdim=True).clamp_min(1.0)
             out = out / counts
