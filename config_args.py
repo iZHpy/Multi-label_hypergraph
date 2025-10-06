@@ -27,8 +27,6 @@ def get_args(parser):
     parser.add_argument('-d_emb', type=int, default=512)  # embedding dimension
     parser.add_argument('-d_latent', type=int, default=64)  # latent dimension
     parser.add_argument('-d_inner_hid', type=int, default=-1)  # model hidden dimension
-    parser.add_argument('-d_k', type=int, default=-1)
-    parser.add_argument('-d_v', type=int, default=-1)
     parser.add_argument('-n_head', type=int, default=8)
     parser.add_argument('-n_layers_sample_enc', type=int, default=5)
     parser.add_argument('-n_layers_label_enc', type=int, default=5)
@@ -36,8 +34,6 @@ def get_args(parser):
     parser.add_argument('-eta_min', type=float, default=1e-5)
     parser.add_argument('-T0', type=int, default=2)
     parser.add_argument('-T_mult', type=int, default=2)
-    parser.add_argument('-lr_step_size', type=int, default=10)
-    parser.add_argument('-lr_decay', type=float, default=0.8)
     parser.add_argument('-sample_enc_dropout', type=float, default=0.1)
     parser.add_argument('-label_enc_dropout', type=float, default=0.1)
     parser.add_argument('-encoder_type', type=str, choices=['MLP', 'DeepSets', 'SetTransformer'], default='MLP')
@@ -59,7 +55,10 @@ def get_args(parser):
     parser.add_argument('-no_enc_pos_embedding', action='store_true')
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-load_pretrained', action='store_true')
-    parser.add_argument('-nll_coeff', type=float, default=1.0)
+    parser.add_argument('-nll_e_weight', type=float, default=0.2)
+    parser.add_argument('-nll_x_weight', type=float, default=1)
+    parser.add_argument('-kl_weight', type=float, default=0.1)
+    parser.add_argument('-cpc_weight', type=float, default=0.2)
     opt = parser.parse_args()
     return opt
 
@@ -72,10 +71,9 @@ def config_args(opt):
     if opt.dataset in ['deepsea', 'gm12878', 'gm12878_unique2', 'gm12878_unique', 'tcell']:
         opt.feat_mode = 'onehot'
 
-    if opt.d_v == -1:
-        opt.d_v = int(opt.d_model / opt.n_head)
-    if opt.d_k == -1:
-        opt.d_k = int(opt.d_model / opt.n_head)
+
+    opt.d_v = int(opt.d_model / opt.n_head)
+    opt.d_k = int(opt.d_model / opt.n_head)
 
     if opt.dataset in ['yeast', 'scene', 'nuswide_vector']:
         opt.feat_mode = 'vec'
@@ -112,8 +110,6 @@ def config_args(opt):
     opt.model_name += '.test_bsz_' + str(opt.batch_size)
 
     opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
-    if opt.lr_decay > 0:
-        opt.model_name += '.decay_' + str(opt.lr_decay).replace('.', '') + '_' + str(opt.lr_step_size)
 
     opt.model_name += '.sample_drop_' + ("%.2f" % opt.sample_enc_dropout).split('.')[1]
     opt.model_name += '.label_drop_' + ("%.2f" % opt.label_enc_dropout).split('.')[1]
@@ -123,6 +119,7 @@ def config_args(opt):
     opt.model_name+= f'.epoch_{opt.epoch}'
 
     opt.model_name = path.join(opt.results_dir, opt.dataset, opt.model_name)
+    opt.model_search = path.join(opt.results_dir, opt.dataset)
 
     opt.data_type = opt.dataset
 

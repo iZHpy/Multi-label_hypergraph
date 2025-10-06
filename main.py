@@ -135,8 +135,7 @@ def main(opt):
         model.load_state_dict(checkpoint['model'])
 
     try:
-        run_model(model, train_data, valid_data, test_data, crit, optimizer, adv_optimizer, scheduler, opt,
-                  data['dict'])
+        run_model(model, train_data, valid_data, test_data, crit, optimizer, adv_optimizer, scheduler, opt, trial=None)
     except KeyboardInterrupt:
         print('-' * 89 + '\nManual Exit')
         exit()

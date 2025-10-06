@@ -169,6 +169,6 @@ def compute_loss(input_label, output, args=None):
     nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean')
     nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
     cpc_loss = supconloss(logits_e, logits_x)
-    sum_loss = nll_loss  + nll_loss_x * 3. + cpc_loss
+    sum_loss = nll_loss * args.nll_e_weight  + nll_loss_x * args.nll_x_weight + cpc_loss * args.cpc_weight + kl_loss * args.kl_weight
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

@@ -67,12 +67,12 @@ def train_eval(params, trial, opt):
     torch.manual_seed(opt.seed)
     torch.cuda.manual_seed(opt.seed)
     
-    log_file_path = os.path.join(opt.model_name, 'results.txt')
-    start_logging(log_file_path)
     # ========= Loading Dataset =========#
     data = torch.load(opt.data)
     if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider', 'data/yeast', 'data/sider', 'data/nuswide_vector', 'data/scene']:
         train_labels = generate_train_labels(data['train']['tgt'])
+
+    opt.batch_size = params['batch_size']
 
     train_data, valid_data, test_data, opt = process_data(data, opt)
     model = Hyperlabel(
@@ -121,6 +121,7 @@ def objective(trial):
     params = {
         'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
         'd_inner_hid': trial.suggest_categorical('d_inner_hid', [256, 512, 1024, 2048]),
+        'batch_size': trial.suggest_categorical('batch_size', [32, 64, 128]),
         'n_layers_sample_enc': trial.suggest_int('n_layers_sample_enc', 2, 3, 5),
         'n_layers_label_enc': trial.suggest_int('n_layers_label_enc', 2, 3, 5),
         'n_head': trial.suggest_categorical('n_head', [4, 8]),
@@ -135,6 +136,8 @@ def objective(trial):
     return metric
 
 if __name__ == '__main__':
+    log_file_path = os.path.join(opt.model_search, 'search.txt')
+    start_logging(log_file_path)
     pruner = optuna.pruners.MedianPruner(  # 中度剪枝
         n_startup_trials=5,      # 前5个不剪
         n_warmup_steps=0,        # 不等warmup步也行（你用epoch作为step）
