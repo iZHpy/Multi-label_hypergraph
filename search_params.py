@@ -76,6 +76,9 @@ def train_eval(params, trial, opt):
 
     train_data, valid_data, test_data, opt, label_adj_matrix = process_data(data, opt)
     opt.d_model = params['d_model']
+    opt.d_word_vec = params['d_model']
+    opt.d_k = int(opt.d_model / opt.n_head)
+    opt.d_v = int(opt.d_model / opt.n_head)
     opt.d_inner_hid = params['d_inner_hid']
     opt.n_layers_sample_enc = params['n_layers_sample_enc']
     opt.n_layers_label_enc = params['n_layers_label_enc']

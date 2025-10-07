@@ -95,6 +95,7 @@ class GraphEncoder(nn.Module):
                         enc_slf_attn_mask[idx][:adj_size, :adj_size] = utils.swap_0_1(adj[idx], 1, 0)
             enc_slf_attn_mask = enc_slf_attn_mask.type(torch.uint8)
 
+
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(enc_output, slf_attn_mask=enc_slf_attn_mask)
 
