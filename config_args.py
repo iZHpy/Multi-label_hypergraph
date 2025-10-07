@@ -104,8 +104,7 @@ def config_args(opt):
         opt.test_batch_size = opt.batch_size
 
     opt.model_name += '.test_bsz_' + str(opt.batch_size)
-
-    opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
+    opt.model_name += '.lr_' + str(opt.lr)
 
     opt.model_name += '.sample_drop_' + ("%.2f" % opt.sample_enc_dropout).split('.')[1]
     opt.model_name += '.label_drop_' + ("%.2f" % opt.label_enc_dropout).split('.')[1]

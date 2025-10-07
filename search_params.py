@@ -100,7 +100,11 @@ def train_eval(params, trial, opt):
         node_update=opt.node_update,
         feat_mode=opt.feat_mode,
         no_enc_pos_embedding=opt.no_enc_pos_embedding)
-
+    opt.nll_e_weight = params['nll_e_weight']
+    opt.nll_x_weight = params['nll_x_weight']
+    opt.kl_weight = params['kl_weight']
+    opt.cpc_weight = params['cpc_weight']
+    
     opt.total_num_parameters = int(utils.count_parameters(model))
     optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=params['lr'], betas=(0.9, 0.999), weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, eta_min=params['eta_min'], T_0=params['T0'] * len(train_data), T_mult=params['T_mult'])
@@ -125,34 +129,34 @@ def objective(trial):
         'n_head': trial.suggest_categorical('n_head', [4, 8]),
         'sample_enc_dropout': trial.suggest_float("sample_enc_dropout", 0.0, 0.5, step=0.1),
         'label_enc_dropout': trial.suggest_float('label_enc_dropout', 0.0, 0.5, step=0.1),
-        'lr': trial.suggest_categorical('lr', [2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 8e-4, 1e-3]),
+        'lr': trial.suggest_categorical('lr', [2e-5, 4e-5, 8e-5, 1e-4, 2e-4, 5e-4, 7e-4, 9e-4, 1e-3]),
         'eta_min': trial.suggest_categorical('eta_min', [1e-6, 5e-6, 1e-5]),
         'T0': trial.suggest_int('T0', 1, 2, 4),
         'T_mult': trial.suggest_categorical('T_mult', [2, 4]),
-        'nll_e_weight': trial.suggest_float('nll_e_weight', 1.0, 6.0, step=1),
-        'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0, step=1),
+        'nll_e_weight': trial.suggest_float('nll_e_weight', 1.0, 6.0, step=0.5),
+        'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0, step=0.5),
         'kl_weight': trial.suggest_float('kl_weight', 0, 1, step=0.2),
         'cpc_weight': trial.suggest_float('cpc_weight', 0, 1, step=0.2),
     }
 
-    # params = {
-    #     'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
-    #     'd_inner_hid': trial.suggest_categorical('d_inner_hid', [256, 512, 1024, 2048]),
-    #     'batch_size': trial.suggest_categorical('batch_size', [32, 64, 128]),
-    #     'n_layers_sample_enc': trial.suggest_int('n_layers_sample_enc', 2, 3, 5),
-    #     'n_layers_label_enc': trial.suggest_int('n_layers_label_enc', 2, 3, 5),
-    #     'n_head': trial.suggest_categorical('n_head', [4, 8]),
-    #     'sample_enc_dropout': trial.suggest_float('sample_enc_dropout', 0.0, 0.5),
-    #     'label_enc_dropout': trial.suggest_float('label_enc_dropout', 0.0, 0.5),
-    #     'lr': trial.suggest_float('lr', 2e-5, 1e-3, log=True),
-    #     'eta_min': trial.suggest_float('eta_min', 1e-6, 1e-5, log=True),
-    #     'T0': trial.suggest_int('T0', 1, 2, 4),
-    #     'T_mult': trial.suggest_categorical('T_mult', [2, 4]),
-    #     'nll_e_weight': trial.suggest_float('nll_e_weight', 1.0, 6.0),
-    #     'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0),
-    #     'kl_weight': trial.suggest_float('kl_weight', 0, 1),
-    #     'cpc_weight': trial.suggest_float('cpc_weight', 0, 1),
-    # }
+    params = {
+        'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
+        'd_inner_hid': trial.suggest_categorical('d_inner_hid', [256, 512, 1024, 2048]),
+        'batch_size': trial.suggest_categorical('batch_size', [32, 64, 128]),
+        'n_layers_sample_enc': trial.suggest_int('n_layers_sample_enc', 2, 3, 5),
+        'n_layers_label_enc': trial.suggest_int('n_layers_label_enc', 2, 3, 5),
+        'n_head': trial.suggest_categorical('n_head', [4, 8]),
+        'sample_enc_dropout': trial.suggest_float('sample_enc_dropout', 0.0, 0.5),
+        'label_enc_dropout': trial.suggest_float('label_enc_dropout', 0.0, 0.5),
+        'lr': trial.suggest_float('lr', 2e-5, 1e-3, log=True),
+        'eta_min': trial.suggest_float('eta_min', 1e-6, 1e-5, log=True),
+        'T0': trial.suggest_int('T0', 1, 2, 4),
+        'T_mult': trial.suggest_categorical('T_mult', [2, 4]),
+        'nll_e_weight': trial.suggest_float('nll_e_weight', 1.0, 6.0),
+        'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0),
+        'kl_weight': trial.suggest_float('kl_weight', 0, 1),
+        'cpc_weight': trial.suggest_float('cpc_weight', 0, 1),
+    }
 
     metric = train_eval(params, opt=opt, trial=trial)
     return metric

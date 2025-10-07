@@ -70,8 +70,8 @@ class Hyperlabel(nn.Module):
         ############# Decoder ###########
         if self.feat_mode == 'tokens':
             n_src_vocab = n_src_vocab - 4
-        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
-        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
+        self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab, hidden_dim=d_emb)
+        # self.decoder = AttentionDecoder(d_in=d_latent+n_src_vocab, d_latent=d_latent, num_labels=n_tgt_vocab)
         
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
