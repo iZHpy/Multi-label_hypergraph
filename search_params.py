@@ -86,9 +86,9 @@ def train_eval(params, trial, opt):
     opt.n_head2 = opt.n_head
     opt.sample_enc_dropout = params['sample_enc_dropout']
     opt.label_enc_dropout = params['label_enc_dropout']
-    # opt.dec_dropout = params['dec_dropout']
-    # opt.dec_dropout2 = params['dec_dropout']
-    # opt.n_layers_dec = params['n_layers_dec']
+    opt.dec_dropout = params['dec_dropout']
+    opt.dec_dropout2 = params['dec_dropout']
+    opt.n_layers_dec = params['n_layers_dec']
 
     opt.nll_e_weight = params['nll_e_weight']
     opt.nll_x_weight = params['nll_x_weight']
@@ -157,6 +157,8 @@ def objective(trial):
         'nll_x_weight': trial.suggest_float('nll_x_weight', 1.0, 8.0, step=0.5),
         'kl_weight': trial.suggest_float('kl_weight', 0, 1, step=0.2),
         'cpc_weight': trial.suggest_float('cpc_weight', 0, 1, step=0.2),
+        'dec_dropout': trial.suggest_float("dec_dropout", 0.0, 0.5, step=0.1),
+        'n_layers_dec': trial.suggest_int('n_layers_dec', 2, 3, 5),
     }
 
     # params = {

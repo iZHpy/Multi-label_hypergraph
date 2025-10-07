@@ -29,15 +29,16 @@ class ScaledDotProductAttention(nn.Module):
         attn = attn / self.temperature
         if attn_mask is not None:
             attn = attn.masked_fill(attn_mask.bool(), -np.inf)
-            
+
         if stop_sig:
             print('**')
             stop()
 
-
         attn = self.attn_type(attn)
+
         attn = self.dropout(attn)
         output = torch.bmm(attn, v)
+
 
         return output, attn
 
@@ -89,7 +90,6 @@ class MultiHeadAttention(nn.Module):
         q = self.w_qs(q).view(sz_b, len_q, n_head, d_k)
         k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
         v = self.w_vs(v).view(sz_b, len_v, n_head, d_v)
-
 
         q = q.permute(2, 0, 1, 3).contiguous().view(-1, len_q, d_k) # (n*b) x lq x dk
         k = k.permute(2, 0, 1, 3).contiguous().view(-1, len_k, d_k) # (n*b) x lk x dk

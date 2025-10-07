@@ -112,17 +112,17 @@ class Hyperlabel(nn.Module):
         # decode
         label_space = fe_out['label_space']
         
-
         if self.feat_mode == 'tokens':
             if self.decoder_type == 'Graph':
                 logits_x, _ = self.decoder(enc_output, src_seq, label_space)
                 logits_e, _ = self.decoder(label_latent, src_seq, label_space)
             else:
-                logits_x = self.decoder(feat_latent, src_multi_hot.float(), label_space)
-                logits_e = self.decoder(label_latent, src_multi_hot.float(), label_space)
+                logits_x, _ = self.decoder(feat_latent, src_multi_hot.float(), label_space)
+                logits_e, _  = self.decoder(label_latent, src_multi_hot.float(), label_space)
         elif self.feat_mode == 'vec':
             logits_x, _ = self.decoder(feat_latent, src_seq, label_space)
             logits_e, _ = self.decoder(label_latent, src_seq, label_space)
+        
         output = fe_out
         output.update(fx_out)
         output['logits_e'] = logits_e

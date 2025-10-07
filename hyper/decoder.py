@@ -179,7 +179,6 @@ class GraphDecoder(nn.Module):
         dec_input = embs.repeat(batch_size,1,1) # [batch_size, num_labels, d_model]
         tgt_seq = self.constant_input.repeat(1,batch_size).transpose(0,1).to(src_seq.device) # [batch_size, num_labels]
         dec_enc_attn_pad_mask = utils.get_attn_padding_mask(tgt_seq, src_seq[:,0:enc_output.size(1)])
-
         if self.label_mask is not None:
             dec_slf_attn_mask = self.label_mask.repeat(batch_size,1,1).to(src_seq.device).byte()
         else:
