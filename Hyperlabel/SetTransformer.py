@@ -96,16 +96,15 @@ class MultiHotToSet(nn.Module):
 class SetTransformerEncoder(nn.Module):
     """
     input: multi_hot [B, V]
-    output: z [B, 1, d_latent]
+    output: z [B, 1, d_model]
     1) multi_hot -> embedding -> set of elements [B, L, d_model]
     2) ISAB -> (SAB...) -> PMA -> [B, 1, d_model]
-    3) Linear -> [B, 1, d_latent]
-    4) return z [B, 1, d_latent]
+    3) Linear -> [B, 1, d_model]
+    4) return z [B, 1, d_model]
     """
     def __init__(self,
                  vocab_size: int,
                  d_model: int = 512,
-                 d_latent: int = 64,
                  n_heads: int = 8,
                  d_k: int = 64,
                  d_v: int = 64,
@@ -131,7 +130,7 @@ class SetTransformerEncoder(nn.Module):
         self.sabs = nn.ModuleList([SAB(d_model, n_heads, d_k, d_v, dropout) for _ in range(num_sab)])
         self.pma = PMA(d_model, n_heads, d_k, d_v, k=k_pma, dropout=dropout)  # k=1 输出 [B,1,d_model]
 
-        self.out = nn.Linear(d_model, d_latent, bias=False)
+        self.out = nn.Linear(d_model, d_model, bias=False)
 
     def forward(self,
                 multi_hot: Optional[torch.Tensor] = None):
@@ -154,5 +153,5 @@ class SetTransformerEncoder(nn.Module):
             Y = sab(Y, attn_mask=None)
 
         pooled = self.pma(Y)              # [B, k, d_model]，k=1 -> [B,1,d_model]
-        z = self.out(pooled)              # [B, 1, d_latent]
+        z = self.out(pooled)              # [B, 1, d_model]
         return z

@@ -16,7 +16,7 @@ import copy
 class GraphEncoder(nn.Module):
     def __init__(
             self, n_src_vocab, n_max_seq, n_layers=6, n_head=8, d_k=64, d_v=64,
-            d_word_vec=512, d_model=512, d_latent=64, d_inner_hid=1024, feat_mode='tokens', enc_transform='special_token',
+            d_word_vec=512, d_model=512, d_inner_hid=1024, feat_mode='tokens', enc_transform='special_token',
             special_token_init='normal', dropout=0.1, no_enc_pos_embedding=False):
 
         super(GraphEncoder, self).__init__()
@@ -24,7 +24,6 @@ class GraphEncoder(nn.Module):
         n_position = n_max_seq + 1  # 0, 1, 2, ..., N
         self.n_max_seq = n_max_seq
         self.d_model = d_model
-        self.latent_dim = d_latent
         self.feat_mode = feat_mode
         self.enc_transform = enc_transform
         self.dropout = nn.Dropout(dropout)
@@ -61,7 +60,6 @@ class GraphEncoder(nn.Module):
                 self.special_token_emb = nn.Parameter(torch.normal(0, 0.02, size=(1, 1, d_model)))
             else:
                 raise ValueError("Unsupported initialization method")
-        self.encoder_project = nn.Linear(d_model, d_latent)
         
     def forward(self, src_seq, adj, src_pos):
         batch_size = src_seq.size(0)
@@ -100,6 +98,8 @@ class GraphEncoder(nn.Module):
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(enc_output, slf_attn_mask=enc_slf_attn_mask)
 
+        enc_output_tokens = enc_output
+
         if self.enc_transform == 'max':
             enc_output = F.max_pool1d(enc_output.transpose(1, 2), enc_output.size(1)).squeeze()
         elif self.enc_transform == 'mean':
@@ -109,10 +109,9 @@ class GraphEncoder(nn.Module):
         else:
             raise ValueError("not use enc_transform")
 
-        enc_output = enc_output.view(batch_size, 1, -1)
-        enc_output = self.encoder_project(enc_output)
+        enc_output = enc_output.view(batch_size, -1)
 
-        return enc_output
+        return enc_output_tokens, enc_output
 
    
 class ResidualMLP(nn.Module):
@@ -132,18 +131,17 @@ class ResidualMLP(nn.Module):
 class MLPEncoder(nn.Module):
     """
     input: multi-hot vector [B, V], V is vocab size
-    output: z [B, 1, d_latent]
+    output: z [B, 1, d_model]
     """
-    def __init__(self, d_in, d_model=512, d_hidden=512, d_latent=64, n_layers=3, dropout=0.1, pool="mean"):
+    def __init__(self, d_in, d_model=512, d_hidden=512, n_layers=3, dropout=0.1, pool="mean"):
         super().__init__()
 
         self.pool = pool
         self.emb = nn.Linear(d_in, d_model, bias=False)
-        layers = []
         in_dim = d_model
         self.blocks = nn.ModuleList([ResidualMLP(in_dim, d_hidden, dropout) 
                                      for _ in range(n_layers)])
-        self.latent_proj = nn.Linear(in_dim, d_latent)
+        self.latent_proj = nn.Linear(in_dim, d_model)
     def forward(self, multi_hot):
         # multi_hot: [B, V] -> bag embedding = multi_hot @ E (E=[V,d_model])
         out = self.emb(multi_hot)  # [B, d_model]
@@ -152,9 +150,8 @@ class MLPEncoder(nn.Module):
             out = out / counts
         for block in self.blocks:
             out = block(out)
-        z = self.latent_proj(out)
-        z = z.unsqueeze(1)  # [B, 1, d_latent]
-        return z
+        z = self.latent_proj(out) # [B, d_model]
+        return None, z
 
     
 class DeepSetsEncoder(nn.Module):
@@ -163,9 +160,9 @@ class DeepSetsEncoder(nn.Module):
       - multi_hot: [B, V] 
 
     输出:
-      - z: [B, 1, d_latent]   
+      - z: [B, 1, d_model]
     """
-    def __init__(self, vocab_size, d_model=512, d_latent=64, dropout=0.1,  pool="mean"):
+    def __init__(self, vocab_size, d_model=512, dropout=0.1,  pool="mean"):
         super().__init__()
         self.pool = pool
         # embedding embedding E
@@ -184,7 +181,7 @@ class DeepSetsEncoder(nn.Module):
             nn.Linear(d_model, d_model),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(d_model, d_latent)
+            nn.Linear(d_model, d_model)
         )
 
     def forward(self, multi_hot: torch.Tensor):
@@ -201,5 +198,5 @@ class DeepSetsEncoder(nn.Module):
             raise NotImplementedError("max pooling not implemented yet")
 
         h = self.phi(emb)
-        z = self.rho(h).unsqueeze(1)  # [B,1,d_latent]
+        z = self.rho(h).unsqueeze(1)  # [B, 1, d_model]
         return z

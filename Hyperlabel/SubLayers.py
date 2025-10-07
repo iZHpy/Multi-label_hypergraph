@@ -27,10 +27,9 @@ class ScaledDotProductAttention(nn.Module):
     def forward(self, q, k, v, attn_mask=None,stop_sig=False):
         attn = torch.bmm(q, k.transpose(1, 2))
         attn = attn / self.temperature
-
         if attn_mask is not None:
             attn = attn.masked_fill(attn_mask.bool(), -np.inf)
-
+            
         if stop_sig:
             print('**')
             stop()

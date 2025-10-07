@@ -73,36 +73,40 @@ def main(opt):
     if opt.dataset in ['data/reuters', 'data/bibtext', 'data/bookmarks', 'data/delicious', 'data/sider', 'data/yeast', 'data/sider', 'data/nuswide_vector', 'data/scene']:
         train_labels = generate_train_labels(data['train']['tgt'])
 
-    train_data, valid_data, test_data, opt = process_data(data, opt)
+    train_data, valid_data, test_data, opt, label_adj_matrix = process_data(data, opt)
  
     print(opt)
 
     # ========= Preparing Model =========#
     model = Hyperlabel(
-        opt.src_vocab_size,
+        opt.src_vocab_size,     
         opt.tgt_vocab_size,
         opt.max_token_seq_len_e,
         train_labels=train_labels,
         d_k=opt.d_k,
-        d_v=opt.d_v,
+        d_v=opt.d_v,        
         d_model=opt.d_model,
         d_word_vec=opt.d_word_vec,
-        d_emb=opt.d_emb,
         d_inner_hid=opt.d_inner_hid,
-        d_latent=opt.d_latent,
         n_layers_sample_enc=opt.n_layers_sample_enc,
         n_layers_label_enc=opt.n_layers_label_enc,
         n_head=opt.n_head,
+        n_head2=opt.n_head2,
         sample_enc_dropout=opt.sample_enc_dropout,
         label_enc_dropout = opt.label_enc_dropout,
-        encoder_type=opt.encoder_type,
+        decoder_type=opt.decoder_type,
         enc_transform=opt.enc_transform,
         special_token_init=opt.special_token_init,
         feature_aggregate=opt.feature_aggregate,
         node2hyperedge_aggregate = opt.node2hyperedge_aggregate,
         node_update=opt.node_update,
         feat_mode=opt.feat_mode,
-        no_enc_pos_embedding=opt.no_enc_pos_embedding)
+        no_enc_pos_embedding=opt.no_enc_pos_embedding,
+        dec_dropout=opt.dec_dropout,
+        dec_dropout2=opt.dec_dropout2,
+        n_layers_dec=opt.n_layers_dec,
+        label_adj_matrix=label_adj_matrix
+    )
 
     print(model)
     print(opt.model_name)

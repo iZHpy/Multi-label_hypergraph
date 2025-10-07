@@ -21,6 +21,18 @@ def process_multi_hot(data, opt, type='train'):
 
 
 def process_data(data,opt):
+
+
+    adj_matrix = torch.eye(len(data['dict']['tgt'])-4)
+    for sample in data['train']['tgt']:
+        sample2 = sample
+        for i,idx1 in enumerate(sample[1:-1]):
+            for idx2 in sample2[i+1:-1]:
+                if idx1 != idx2:
+                    adj_matrix[idx1-4,idx2-4] = 1
+                    adj_matrix[idx2-4,idx1-4] = 1
+    label_adj_matrix = adj_matrix
+
     label_vals = torch.zeros(len(data['train']['tgt']),len(data['dict']['tgt']))
     for i in range(len(data['train']['tgt'])):
         indices = torch.from_numpy(np.array(data['train']['tgt'][i])).long()
@@ -107,7 +119,7 @@ def process_data(data,opt):
     opt.tgt_vocab_size = train_data.tgt_vocab_size
     opt.tgt_vocab_size = opt.tgt_vocab_size - 4
 
-    return train_data,valid_data,test_data,opt
+    return train_data,valid_data,test_data,opt, label_adj_matrix
 
 
 class DataLoader(object):

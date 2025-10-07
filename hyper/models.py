@@ -112,12 +112,12 @@ class WeightedHypergraphLayer(nn.Module):
 
 
 class WeightedHypergraphModel(nn.Module):
-    def __init__(self, num_labels, feature_dim, d_latent, num_layers, feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple', num_heads=4, dropout_rate=0.1):
+    def __init__(self, num_labels, feature_dim, num_layers, feature_aggregate='mean', node2hyperedge_aggregate='mean', node_update='simple', num_heads=4, dropout_rate=0.1):
         super(WeightedHypergraphModel, self).__init__()
         self.layers = nn.ModuleList([WeightedHypergraphLayer(feature_dim, aggregation_type=node2hyperedge_aggregate, node_update=node_update,
                                         num_heads=num_heads,dropout_rate=dropout_rate) for _ in range(num_layers)])
-        self.final_node_projection = nn.Linear(feature_dim, d_latent)
-        self.final_edge_projection = nn.Linear(feature_dim, d_latent)
+        self.final_node_projection = nn.Linear(feature_dim, feature_dim)
+        self.final_edge_projection = nn.Linear(feature_dim, feature_dim)
 
         self.feature_aggregate = feature_aggregate
         if feature_aggregate == 'simple_attention':
@@ -129,7 +129,7 @@ class WeightedHypergraphModel(nn.Module):
         elif feature_aggregate == 'self_attention':
             self.self_attention = MultiHeadAttention(feature_dim, num_heads)
 
-        self.layer_norm = nn.LayerNorm(d_latent)
+        self.layer_norm = nn.LayerNorm(feature_dim)
      
     def forward(self, hypergraph, batch_features, node_features, start_index, end_index, device='cpu'):
         edge_features = torch.zeros(len(hypergraph.id_to_edge), node_features.size(1), device=device)

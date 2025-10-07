@@ -24,20 +24,22 @@ def get_args(parser):
     parser.add_argument('-test_batch_size', type=int, default=-1)
     parser.add_argument('-seed', type=int, default=42)
     parser.add_argument('-d_model', type=int, default=512)  # model dimension
-    parser.add_argument('-d_emb', type=int, default=512)  # embedding dimension
-    parser.add_argument('-d_latent', type=int, default=64)  # latent dimension
     parser.add_argument('-d_inner_hid', type=int, default=-1)  # model hidden dimension
     parser.add_argument('-n_head', type=int, default=8)
+    parser.add_argument('-n_head2', type=int, default=-1)
     parser.add_argument('-n_layers_sample_enc', type=int, default=5)
     parser.add_argument('-n_layers_label_enc', type=int, default=5)
+    parser.add_argument('-n_layers_dec', type=int, default=2)
     parser.add_argument('-lr', type=float, default=1e-3)
     parser.add_argument('-eta_min', type=float, default=1e-5)
     parser.add_argument('-T0', type=int, default=2)
     parser.add_argument('-T_mult', type=int, default=2)
     parser.add_argument('-sample_enc_dropout', type=float, default=0.1)
     parser.add_argument('-label_enc_dropout', type=float, default=0.1)
-    parser.add_argument('-encoder_type', type=str, choices=['MLP', 'DeepSets', 'SetTransformer'], default='MLP')
-    parser.add_argument('-enc_transform', type=str, choices=['max', 'mean', 'special_token'], default='special_token')
+    parser.add_argument('-dec_dropout', type=float, default=0.1)
+    parser.add_argument('-dec_dropout2', type=float, default=-1)
+    parser.add_argument('-decoder_type', type=str, choices=['Simple', 'Graph'], default='Graph')
+    parser.add_argument('-enc_transform', type=str, choices=['max', 'mean', 'special_token'], default='mean')
     parser.add_argument('-special_token_init', type=str, choices=['random', 'xavier_uniform', 'xavier_normal',
                                                                   'kaiming_uniform', 'kaiming_normal', 'normal'],
                         default='normal')
@@ -77,6 +79,12 @@ def config_args(opt):
 
     if opt.d_inner_hid == -1:
         opt.d_inner_hid = int(opt.d_model * 2)
+    
+    if opt.dec_dropout2 == -1:
+        opt.dec_dropout2 = opt.dec_dropout
+
+    if opt.n_head2 == -1:
+        opt.n_head2 = opt.n_head
 
     opt.model_name = ''
 
@@ -90,7 +98,7 @@ def config_args(opt):
 
     opt.model_name += '.n_update_' + opt.node_update
 
-    opt.model_name += '.enc_' + opt.encoder_type
+    opt.model_name += '.dec_' + opt.decoder_type
     opt.model_name += '.' + str(opt.d_model)
     opt.model_name += '.' + str(opt.d_inner_hid)
     opt.model_name += '.' + str(opt.d_k)

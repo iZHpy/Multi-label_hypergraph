@@ -74,36 +74,53 @@ def train_eval(params, trial, opt):
 
     opt.batch_size = params['batch_size']
 
-    train_data, valid_data, test_data, opt = process_data(data, opt)
+    train_data, valid_data, test_data, opt, label_adj_matrix = process_data(data, opt)
+    opt.d_model = params['d_model']
+    opt.d_inner_hid = params['d_inner_hid']
+    opt.n_layers_sample_enc = params['n_layers_sample_enc']
+    opt.n_layers_label_enc = params['n_layers_label_enc']
+    opt.n_head = params['n_head']
+    opt.n_head2 = opt.n_head
+    opt.sample_enc_dropout = params['sample_enc_dropout']
+    opt.label_enc_dropout = params['label_enc_dropout']
+    # opt.dec_dropout = params['dec_dropout']
+    # opt.dec_dropout2 = params['dec_dropout']
+    # opt.n_layers_dec = params['n_layers_dec']
+
+    opt.nll_e_weight = params['nll_e_weight']
+    opt.nll_x_weight = params['nll_x_weight']
+    opt.kl_weight = params['kl_weight']
+    opt.cpc_weight = params['cpc_weight']
+
     model = Hyperlabel(
-        opt.src_vocab_size,
+        opt.src_vocab_size,     
         opt.tgt_vocab_size,
         opt.max_token_seq_len_e,
         train_labels=train_labels,
         d_k=opt.d_k,
-        d_v=opt.d_v,
-        d_model=params['d_model'],
-        d_word_vec=params['d_model'],
-        d_emb=params['d_model'],
-        d_inner_hid=params['d_inner_hid'],
-        d_latent=params['d_model'],
-        n_layers_sample_enc=params['n_layers_sample_enc'],
-        n_layers_label_enc=params['n_layers_label_enc'],
-        n_head=params['n_head'],
-        sample_enc_dropout=params['sample_enc_dropout'],
-        label_enc_dropout = params['label_enc_dropout'],
-        encoder_type=opt.encoder_type,
+        d_v=opt.d_v,        
+        d_model=opt.d_model,
+        d_word_vec=opt.d_word_vec,
+        d_inner_hid=opt.d_inner_hid,
+        n_layers_sample_enc=opt.n_layers_sample_enc,
+        n_layers_label_enc=opt.n_layers_label_enc,
+        n_head=opt.n_head,
+        n_head2=opt.n_head2,
+        sample_enc_dropout=opt.sample_enc_dropout,
+        label_enc_dropout = opt.label_enc_dropout,
+        decoder_type=opt.decoder_type,
         enc_transform=opt.enc_transform,
         special_token_init=opt.special_token_init,
         feature_aggregate=opt.feature_aggregate,
         node2hyperedge_aggregate = opt.node2hyperedge_aggregate,
         node_update=opt.node_update,
         feat_mode=opt.feat_mode,
-        no_enc_pos_embedding=opt.no_enc_pos_embedding)
-    opt.nll_e_weight = params['nll_e_weight']
-    opt.nll_x_weight = params['nll_x_weight']
-    opt.kl_weight = params['kl_weight']
-    opt.cpc_weight = params['cpc_weight']
+        no_enc_pos_embedding=opt.no_enc_pos_embedding,
+        dec_dropout=opt.dec_dropout,
+        dec_dropout2=opt.dec_dropout2,
+        n_layers_dec=opt.n_layers_dec,
+        label_adj_matrix=label_adj_matrix
+    )
     
     opt.total_num_parameters = int(utils.count_parameters(model))
     optimizer = torch.optim.AdamW(model.get_trainable_parameters(), lr=params['lr'], betas=(0.9, 0.999), weight_decay=1e-5)
