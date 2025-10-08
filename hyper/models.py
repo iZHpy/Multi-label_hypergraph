@@ -100,7 +100,7 @@ class WeightedHypergraphLayer(nn.Module):
             node_features_update = self.mlp3(torch.cat([
                 node_features,
                 p_tilde,
-                gate * p_tilde,  # 加入门控机制
+                gate * p_tilde,  # add gated information
             ], dim=-1)) / edge_count.unsqueeze(1)
         else:
             raise ValueError(f"Unknown node_update type: {self.node_update}")

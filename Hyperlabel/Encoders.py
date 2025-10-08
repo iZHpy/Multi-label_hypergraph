@@ -65,9 +65,8 @@ class GraphEncoder(nn.Module):
         batch_size = src_seq.size(0)
         enc_input = self.src_word_emb(src_seq)
         pad_idx = Constants.PAD
-        num_pos = self.position_enc.num_embeddings  # 应该等于 n_max_seq + 1
+        num_pos = self.position_enc.num_embeddings 
 
-        # 如果有负数/越界，先打印出来定位
         min_v = int(src_pos.min())
         max_v = int(src_pos.max())
         assert min_v >= 0 and max_v < num_pos, \

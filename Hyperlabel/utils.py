@@ -17,17 +17,6 @@ def position_encoding_init(n_position, d_pos_vec):
     pe[0] = 0
     return pe.type(torch.FloatTensor)
 
-# def position_encoding_init(n_position, d_pos_vec):
-#     ''' Init the sinusoid position encoding table '''
-
-#     # keep dim 0 for padding token position encoding zero vector
-#     position_enc = np.array([
-#         [pos / np.power(10000, 2 * (j // 2) / d_pos_vec) for j in range(d_pos_vec)]
-#         if pos != 0 else np.zeros(d_pos_vec) for pos in range(n_position)])
-
-#     position_enc[1:, 0::2] = np.sin(position_enc[1:, 0::2]) # dim 2i
-#     position_enc[1:, 1::2] = np.cos(position_enc[1:, 1::2]) # dim 2i+1
-#     return torch.from_numpy(position_enc).type(torch.FloatTensor)
 
 def onehot_init(n_src_vocab, d_word_vec):    
     return torch.from_numpy(position_enc).type(torch.FloatTensor)

@@ -55,15 +55,6 @@ def process_data(data,opt):
     for sample in data['test']['tgt']:
         sample = sorted(sample, key=ranking.index)
 
-    # print('max_seq_len', data['settings'].max_seq_len)
-    # print('src_vocab', data['dict']['tgt'])
-    # print('n_tgt_vocab', len(data['dict']['tgt']))
-    # print('n_train', len(data['train']['src']))
-    # print('n_valid', len(data['valid']['src']))
-    # print('n_test', len(data['test']['src']))
-    # print('sample src', data['train']['src'][0])
-    # print('sample tgt', data['train']['tgt'][0])
-    # raise Exception
 
     for sample in data['train']['src']:
         if len(sample) > data['settings'].max_seq_len:

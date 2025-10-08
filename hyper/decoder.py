@@ -6,49 +6,6 @@ from Hyperlabel import utils
 from Hyperlabel.Layers import DecoderLayer
 from Hyperlabel.SubLayers import XavierLinear
 
-class ComplexDecoder(nn.Module):
-    def __init__(self, feature_dim, num_labels, hidden_dim=512):
-        super(ComplexDecoder, self).__init__()
-        self.feature_dim = feature_dim
-        self.num_labels = num_labels
-
-        # Attention mechanism
-        self.query_proj = nn.Linear(feature_dim, hidden_dim)
-        self.key_proj = nn.Linear(feature_dim, hidden_dim)
-        self.value_proj = nn.Linear(feature_dim, hidden_dim)
-
-        # Label correlation learning
-        self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
-
-        # Final prediction layers
-        self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, num_labels)
-
-    def forward(self, sample_feature, label_feature):
-        batch_size = sample_feature.shape[0]
-
-        # Attention mechanism
-        query = self.query_proj(sample_feature)  # [batch_size, 1, hidden_dim]
-        key = self.key_proj(label_feature).unsqueeze(0)  # [1, num_labels, hidden_dim]
-        value = self.value_proj(label_feature).unsqueeze(0)  # [1, num_labels, hidden_dim]
-
-        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / (self.feature_dim ** 0.5)
-        attention_probs = F.softmax(attention_scores, dim=-1)
-        context_vector = torch.matmul(attention_probs, value)  # [batch_size, 1, hidden_dim]
-
-        # Combine sample feature with context vector
-        combined_feature = torch.cat([sample_feature, context_vector],
-                                     dim=-1)  # [batch_size, 1, hidden_dim*2]
-
-        # Final prediction
-        hidden = F.relu(self.fc1(combined_feature))
-        logits = self.fc2(hidden).squeeze(-1)  # [batch_size, num_labels]
-
-        # Apply label correlation
-        corr_logits = torch.matmul(logits, self.label_correlation)
-        final_logits = logits + corr_logits
-
-        return final_logits
 
     
 class LatentDecoder(nn.Module):
@@ -67,48 +24,6 @@ class LatentDecoder(nn.Module):
         d = F.normalize(d, dim=1)
 
         return d
-    
-# class AttentionDecoder(nn.Module):
-#     def __init__(self, d_in, d_model, num_labels, hidden_dim=512):
-#         super(AttentionDecoder, self).__init__()
-#         self.d_in = d_in
-#         self.d_model = d_model
-#         self.hidden_dim = hidden_dim
-#         self.num_labels = num_labels
-
-#         # Attention mechanism
-#         self.query_proj = nn.Linear(d_in, hidden_dim)
-#         self.key_proj = nn.Linear(d_model, hidden_dim)
-#         self.value_proj = nn.Linear(d_model, hidden_dim)
-
-#         self.label_correlation = nn.Parameter(torch.randn(num_labels, num_labels))
-#         # Final prediction layers
-#         self.fc1 = nn.Linear(hidden_dim + d_in, hidden_dim)
-#         self.fc2 = nn.Linear(hidden_dim, num_labels)
-
-#     def forward(self, samples, x, embs):
-#         batch_size = samples.shape[0]
-#         samples = torch.cat([samples, x], dim=1).unsqueeze(1)  # [batch_size, 1, d_model]
-
-#         # Attention mechanism
-#         query = self.query_proj(samples)  # [batch_size, 1, hidden_dim]
-#         key = self.key_proj(embs).unsqueeze(0)  # [1, num_labels, hidden_dim]
-#         value = self.value_proj(embs).unsqueeze(0)  # [1, num_labels, hidden_dim]
-
-#         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / (self.hidden_dim ** 0.5)
-#         attention_probs = F.softmax(attention_scores, dim=-1)
-#         context_vector = torch.matmul(attention_probs, value)  # [batch_size, 1, hidden_dim]
-
-#         # Combine sample feature with context vector
-#         combined_feature = torch.cat([samples, context_vector],
-#                                      dim=-1)  # [batch_size, 1, hidden_dim*2]
-
-#         # Final prediction
-#         hidden = F.relu(self.fc1(combined_feature))
-#         logits = self.fc2(hidden).squeeze(1)  # [batch_size, num_labels]
-#         logits = logits + torch.matmul(logits, self.label_correlation)
-#         return logits
-    
 
 class AttentionDecoder(nn.Module):
     def __init__(self, d_in, d_model, num_labels):

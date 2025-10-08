@@ -6,7 +6,7 @@ from Hyperlabel.SubLayers import MultiHeadAttention
 
 
 class SAB(nn.Module):
-    """ Self-Attention Block: 直接用 MAB(Q=K=X) """
+    """ Self-Attention Block: """
     def __init__(self, d_model: int, n_heads: int, d_k : int, d_v: int, dropout: float = 0.1):
         super().__init__()
         self.mab = MultiHeadAttention(n_heads, d_model, d_k=d_k, d_v=d_v, dropout=dropout)
@@ -29,8 +29,8 @@ class ISAB(nn.Module):
     def forward(self, X, attn_mask: Optional[torch.Tensor] = None):
         B = X.size(0)
         I = self.I.expand(B, -1, -1)                 # [B, m, d]
-        H, _ = self.mab1(I, X, X, attn_mask=None)          # 诱导点先从 X 聚合信息
-        Y, _ = self.mab2(X, H, H, attn_mask=None)          # 再让 X 从诱导点回读
+        H, _ = self.mab1(I, X, X, attn_mask=None)       
+        Y, _ = self.mab2(X, H, H, attn_mask=None)         
         return Y
 
 
@@ -59,8 +59,6 @@ class MultiHotToSet(nn.Module):
         self.use_dense_matmul = use_dense_matmul
 
         self.emb = nn.Embedding(vocab_size, d_model, padding_idx=0)
-
-        # 注意：dense matmul 路径会产生一个“汇聚后”的 [B, d_model]，不展开为序列
 
     def from_multi_hot(self, Xmh: torch.Tensor, expand_as_sequence: bool = False, max_len: Optional[int] = None):
         """
@@ -125,30 +123,25 @@ class SetTransformerEncoder(nn.Module):
             use_dense_matmul=use_dense_matmul
         )
 
-        # 如果展开成序列 -> ISAB/SAB；否则 bag 向量 -> 当作 |S|=1 的集合进入 SAB/ISAB 也可工作
         self.isab = ISAB(d_model, n_heads, d_k, d_v, num_inducing, dropout=dropout)
         self.sabs = nn.ModuleList([SAB(d_model, n_heads, d_k, d_v, dropout) for _ in range(num_sab)])
-        self.pma = PMA(d_model, n_heads, d_k, d_v, k=k_pma, dropout=dropout)  # k=1 输出 [B,1,d_model]
+        self.pma = PMA(d_model, n_heads, d_k, d_v, k=k_pma, dropout=dropout)  
 
         self.out = nn.Linear(d_model, d_model, bias=False)
 
     def forward(self,
                 multi_hot: Optional[torch.Tensor] = None):
         """
-        二选一提供：
           - multi_hot: [B, V]
         """
 
-
-        # 1) 构建元素级序列 X: [B, L, d_model] 和 lengths（可选）
         if multi_hot is not None:
-            # bag: [B, d_model] -> 视作长度 1 的集合 [B, 1, d_model]
             bag, _ = self.input_builder.from_multi_hot(multi_hot, expand_as_sequence=False)
             X = bag.unsqueeze(1)        # [B, 1, d_model]
             lengths = torch.ones(bag.size(0), dtype=torch.long, device=bag.device)
 
-        # 3) Set Transformer 主干：ISAB -> (SAB...) -> PMA
-        Y = self.isab(X, attn_mask=None)  # 通常不需要 mask；如需可构造成 [B,N,M] 的布尔张量
+        # 3) Set Transformer  
+        Y = self.isab(X, attn_mask=None)      # [B, L, d_model]
         for sab in self.sabs:
             Y = sab(Y, attn_mask=None)
 
