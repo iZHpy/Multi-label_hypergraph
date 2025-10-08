@@ -2,6 +2,7 @@ all_data/*
 private/*
 data/
 results/*
+attn_map/*
 .idea/
 .ipynb_checkpoints
 __pycache__/
@@ -20,3 +21,4 @@ __pycache__/
 *.hdf5
 *.zip
 *.out
+*.pt

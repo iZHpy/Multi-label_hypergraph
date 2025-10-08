@@ -114,21 +114,22 @@ class Hyperlabel(nn.Module):
         
         if self.feat_mode == 'tokens':
             if self.decoder_type == 'Graph':
-                logits_x, _ = self.decoder(enc_output, src_seq, label_space)
-                logits_e, _ = self.decoder(label_latent, src_seq, label_space)
+                logits_x, attn_x = self.decoder(enc_output, src_seq, label_space)
+                logits_e, attn_e = self.decoder(label_latent, src_seq, label_space)
             else:
-                logits_x, _ = self.decoder(feat_latent, src_multi_hot.float(), label_space)
-                logits_e, _  = self.decoder(label_latent, src_multi_hot.float(), label_space)
+                logits_x, attn_x = self.decoder(feat_latent, src_multi_hot.float(), label_space)
+                logits_e, attn_e = self.decoder(label_latent, src_multi_hot.float(), label_space)
         elif self.feat_mode == 'vec':
-            logits_x, _ = self.decoder(feat_latent, src_seq, label_space)
-            logits_e, _ = self.decoder(label_latent, src_seq, label_space)
-        
+            logits_x, attn_x = self.decoder(feat_latent, src_seq, label_space)
+            logits_e, attn_e = self.decoder(label_latent, src_seq, label_space)
+
+
         output = fe_out
         output.update(fx_out)
         output['logits_e'] = logits_e
         output['logits_x'] = logits_x
 
-        return output
+        return output, attn_x, attn_e
 
 def compute_loss(input_label, output, args=None):
     logits_e, label_space,  label_latent, mask = \
@@ -163,6 +164,6 @@ def compute_loss(input_label, output, args=None):
     nll_loss = F.binary_cross_entropy_with_logits(logits_e, input_label, reduction='mean')
     nll_loss_x = F.binary_cross_entropy_with_logits(logits_x, input_label, reduction='mean')
     cpc_loss = supconloss(logits_e, logits_x)
-    sum_loss = nll_loss * args.nll_e_weight  + nll_loss_x * args.nll_x_weight + cpc_loss * args.cpc_weight # + kl_loss * args.kl_weight
+    sum_loss = nll_loss * args.nll_e_weight  + nll_loss_x * args.nll_x_weight + cpc_loss * args.cpc_weight  + kl_loss * args.kl_weight
     return sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, logits_e, logits_x
 

@@ -1,19 +1,7 @@
 import os.path as path
 import os
 import torch
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 0 -sample_enc_dropout 0.2 -label_enc_dropout 0.2 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' 
 
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 0 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -feature_aggregate 'simple_attention'
-
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 0 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -feature_aggregate 'self_attention'
-
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 0 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -node2hyperedge_aggregate 'simple_attention'
-
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 1 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -node2hyperedge_aggregate 'soft_attention'
-
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 1 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -node_update 'gated'
-
-# python main.py -dataset reuters -batch_size 64 -d_model 512 -d_inner_hid 1024 -n_layers_sample_enc 3 -n_layers_label_enc 3 -n_head 8 -epoch 200 -gpu_id 1 -sample_enc_dropout 0.2 -label_enc_dropout 0.0 -lr 0.0002 -decoder_type 'simple' -enc_transform 'special_token' -special_token_init 'normal' -feature_aggregate 'self_attention' -node2hyperedge_aggregate 'soft_attention' -node_update 'gated'
 
 def get_args(parser):
     parser.add_argument('-dataroot', type=str, default='data/')
@@ -103,7 +91,7 @@ def config_args(opt):
     opt.model_name += '.' + str(opt.d_inner_hid)
     opt.model_name += '.' + str(opt.d_k)
     opt.model_name += '.' + str(opt.d_v)
-    opt.model_name += '.nlayers_' + str(opt.n_layers_sample_enc) + '_' + str(opt.n_layers_label_enc)
+    opt.model_name += '.nlayers_' + str(opt.n_layers_sample_enc) + '_' + str(opt.n_layers_label_enc) + '_' + str(opt.n_layers_dec)
     opt.model_name += '.nheads_' + str(opt.n_head)
 
     opt.model_name += '.bsz_' + str(opt.batch_size)

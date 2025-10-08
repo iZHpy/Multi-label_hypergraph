@@ -187,5 +187,4 @@ class GraphDecoder(nn.Module):
         for idx,dec_layer in enumerate(self.layer_stack):
             dec_output, dec_output_int, dec_slf_attn, dec_enc_attn = dec_layer(dec_output, enc_output,slf_attn_mask=dec_slf_attn_mask,dec_enc_attn_mask=dec_enc_attn_pad_mask)
         logits = self.tgt_word_proj(dec_output).squeeze(-1) # [batch_size, num_labels]
-
-        return logits, dec_enc_attn
+        return logits, dec_slf_attn

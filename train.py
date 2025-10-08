@@ -115,7 +115,7 @@ def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,opt):
 
         gold_binary = utils.get_gold_binary(gold.data.cpu(),opt.tgt_vocab_size).to(opt.device)
         optimizer.zero_grad()
-        output = model(src,adj,gold_binary,start_idx, end_idx)
+        output, attn_x, attn_e = model(src,adj,gold_binary,start_idx, end_idx)
         sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, logits = \
                     compute_loss(gold_binary, output, opt)
         loss += sum_loss
@@ -124,22 +124,29 @@ def train_epoch(model,train_data, crit, optimizer,scheduler, epoch,opt):
         total_nll_loss_x += nll_loss_x.item()
         total_kl_loss += kl_loss.item()
         total_cpc_loss += cpc_loss.item()
-        
-        # print_grad(model, logits, output, gold_binary)
-        # print_decoder_grad(model.decoder,nll_loss,nll_loss_x)
-        
+        # if (epoch >= 0):
+        #     src_seq, src_pos, src_multi_hot = src
+        #     for id in range(src_seq.size(0)):
+        #         num_true = gold_binary[id].sum().item()
+        #         if num_true >= 8:
+        #             savedict = { "tgt_raw": gold_binary[id], 
+        #                         "attn_e": attn_e[id], "attn_x": attn_x[id].cpu()}
+        #             torch.save(savedict, path.join('./label_attn', "epoch{}_idx{}.pt".format(epoch, start_idx+id)))     
+        # if (epoch >= 0):
+        #     src_seq, src_pos, src_multi_hot = src
+        #     for id in range(src_seq.size(0)):
+        #         num_true = gold_binary[id].sum().item()
+        #         if num_true >= 8:
+        #             raw = src_seq[id][src_seq[id]!=0].cpu().numpy().tolist()
+        #             l = len(raw)
+        #             savedict = {"src_raw": raw, "tgt_raw": gold_binary[id], 
+        #                         "attn_e": attn_e[id,:, :l], "attn_x": attn_x[id,:, :l].cpu()}
+        #             torch.save(savedict, path.join('./attn_map', "epoch{}_idx{}.pt".format(epoch, start_idx+id)))       
         loss.backward()
         optimizer.step()
         if scheduler: scheduler.step()
         tgt_out = gold_binary.data
         pred_out = torch.sigmoid(logits).data
-
-        # print(gold[0])
-        # print(gold_binary[0])
-        # print(pred_out[0][gold_binary[0]==0])
-        # print(pred_out[0][gold_binary[0]==1])
-        # print('++++++++++++++++++++++++++++++++++')
-
 
         ## Collect batch predictions and targets ##
         all_predictions[start_idx:end_idx] = pred_out

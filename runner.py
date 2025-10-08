@@ -58,10 +58,8 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 		# torch.save(all_predictions,path.join(opt.model_name,'epochs','train_preds'+str(epoch_i+1)+'.pt'))
 		# torch.save(all_targets,path.join(opt.model_name,'epochs','train_targets'+str(epoch_i+1)+'.pt'))
 		train_metrics = evals.compute_metrics(all_predictions,all_targets,0,opt,elapsed,all_metrics=True)  
-
 		################################### VALID ###################################
-  
-  
+
 		start = time.time()
 		all_predictions, all_targets,valid_loss = test_epoch(model, valid_data,opt,'(Validation)')
 		elapsed = ((time.time()-start)/60)

@@ -35,7 +35,7 @@ def test_epoch(model, test_data,opt, description):
 				   torch.cat((src[2],torch.zeros(diff,src[2].size(1)).type(src[2].type()).to(opt.device)),0)]
 			tgt = torch.cat((tgt,torch.zeros(diff,tgt.size(1)).type(tgt.type()).to(opt.device)),0)
 		gold_binary = utils.get_gold_binary(gold.data.cpu(),opt.tgt_vocab_size).to(opt.device)
-		output = model(src,adj,gold_binary,start_idx, end_idx)
+		output, attn_x, attn_e = model(src,adj,gold_binary,start_idx, end_idx)
 		sum_loss, nll_loss, nll_loss_x, kl_loss, cpc_loss, _, feat_out = \
                     compute_loss(gold_binary, output, opt)
 
@@ -51,13 +51,7 @@ def test_epoch(model, test_data,opt, description):
 		feat_out = torch.sigmoid(feat_out).data
 		gold_binary = gold_binary.data
 
-		# if start_idx == 0:
-		# 	print(gold[0])
-		# 	print(gold_binary[0])
-		# 	print(feat_out[gold_binary==0])
-		# 	print(feat_out[gold_binary==1])
-		# 	print('++++++++++++++++++++++++++++++++++')
-	
+
 		all_predictions[start_idx:end_idx] = feat_out
 		all_targets[start_idx:end_idx] = gold_binary
 			

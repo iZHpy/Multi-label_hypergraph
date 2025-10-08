@@ -82,13 +82,13 @@ def train_eval(params, trial, opt):
     opt.d_inner_hid = params['d_inner_hid']
     opt.n_layers_sample_enc = params['n_layers_sample_enc']
     opt.n_layers_label_enc = params['n_layers_label_enc']
+    opt.n_layers_dec = params['n_layers_dec']
     opt.n_head = params['n_head']
     opt.n_head2 = opt.n_head
     opt.sample_enc_dropout = params['sample_enc_dropout']
     opt.label_enc_dropout = params['label_enc_dropout']
     opt.dec_dropout = params['dec_dropout']
     opt.dec_dropout2 = params['dec_dropout']
-    opt.n_layers_dec = params['n_layers_dec']
 
     opt.nll_e_weight = params['nll_e_weight']
     opt.nll_x_weight = params['nll_x_weight']
@@ -158,7 +158,7 @@ def objective(trial):
         'kl_weight': trial.suggest_float('kl_weight', 0, 1, step=0.2),
         'cpc_weight': trial.suggest_float('cpc_weight', 0, 1, step=0.2),
         'dec_dropout': trial.suggest_float("dec_dropout", 0.0, 0.5, step=0.1),
-        'n_layers_dec': trial.suggest_int('n_layers_dec', 2, 3, 5),
+        'n_layers_dec': trial.suggest_int('n_layers_dec', 1, 2)
     }
 
     # params = {
@@ -184,7 +184,7 @@ def objective(trial):
     return metric
 
 if __name__ == '__main__':
-    log_file_path = os.path.join(opt.model_search, 'search.txt')
+    log_file_path = os.path.join(opt.model_search, opt.decoder_type + 'search.txt')
     start_logging(log_file_path)
     pruner = optuna.pruners.MedianPruner(  # 中度剪枝
         n_startup_trials=5,      # 前5个不剪
