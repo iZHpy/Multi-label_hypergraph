@@ -5,7 +5,6 @@ from utils.data_loader import process_data
 import torch, torch.nn as nn, torch.nn.functional as F
 import Hyperlabel.Constants as Constants
 from Hyperlabel.Models import Hyperlabel
-from Hyperlabel.Translator import translate
 from config_args import config_args, get_args
 from pdb import set_trace as stop
 from tqdm import tqdm
@@ -48,7 +47,7 @@ class Logger(object):
     def write(self, message):
         self.terminal.write(message)
         self.log.write(message)
-        self.log.flush()  # 确保实时写入文件
+        self.log.flush()  # Ensure immediate write to file
 
     def flush(self):
         pass

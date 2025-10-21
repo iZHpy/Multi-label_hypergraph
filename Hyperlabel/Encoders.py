@@ -156,10 +156,10 @@ class MLPEncoder(nn.Module):
     
 class DeepSetsEncoder(nn.Module):
     """
-    输入:
+    input:
       - multi_hot: [B, V] 
 
-    输出:
+    output:
       - z: [B, 1, d_model]
     """
     def __init__(self, vocab_size, d_model=512, dropout=0.1,  pool="mean"):

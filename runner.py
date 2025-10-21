@@ -126,7 +126,7 @@ def run_model(model, train_data, valid_data, test_data, crit, optimizer,adv_opti
 			max_metrics = best_test
 
 		if trial is not None:
-			trial.report(max_metrics['ebF1'], step=epoch_i)  # val_metric 用你目标指标，比如 ebF1
+			trial.report(max_metrics['ebF1'], step=epoch_i)  # val_metric
 			if trial.should_prune():
 				raise optuna.TrialPruned()
 

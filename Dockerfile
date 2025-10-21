@@ -20,11 +20,11 @@ COPY environment.yml /opt/app/environment.yml
 
 RUN micromamba create -y -n $ENV_NAME -f environment.yml && micromamba clean -a -y
 
-# 1) 安装 PyTorch cu117 官方 wheel（必须带 +cu117）
+# 1) install PyTorch
 RUN micromamba run -n $ENV_NAME pip install \
   torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1
 
-# 2) 安装 PyG
+# 2) install PyG
 RUN micromamba run -n $ENV_NAME pip install --no-cache-dir --prefer-binary \
   --only-binary=torch-scatter,torch-sparse,torch-cluster,torch-spline-conv \
   https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_scatter-2.1.2%2Bpt20cu117-cp310-cp310-linux_x86_64.whl \
@@ -32,7 +32,7 @@ RUN micromamba run -n $ENV_NAME pip install --no-cache-dir --prefer-binary \
   https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_cluster-1.6.3%2Bpt20cu117-cp310-cp310-linux_x86_64.whl \
   https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_spline_conv-1.2.2%2Bpt20cu117-cp310-cp310-linux_x86_64.whl
 
-# 3) 最后装纯 Python 的 torch-geometric
+# 3) install torch-geometric
 RUN micromamba run -n $ENV_NAME pip install torch-geometric==2.6.0
 RUN micromamba run -n $ENV_NAME pip install OhMyRunPod
 
