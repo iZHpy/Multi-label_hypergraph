@@ -5,7 +5,6 @@ from utils.data_loader import process_data
 import torch, torch.nn as nn, torch.nn.functional as F
 import Hyperlabel.Constants as Constants
 from Hyperlabel.Models import Hyperlabel, compute_loss
-from Hyperlabel.Translator import translate
 from config_args import config_args,get_args
 from pdb import set_trace as stop
 from tqdm import tqdm
